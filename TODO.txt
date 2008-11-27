@@ -1,0 +1,3 @@
+- Property support.
+- Support for sending signals.
+- Support for receiving method calls.
