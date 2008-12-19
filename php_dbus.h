@@ -21,7 +21,10 @@
 #ifndef PHP_DBUS_H
 #define PHP_DBUS_H
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
 #include "Zend/zend_hash.h"
 
 extern zend_module_entry dbus_module_entry;

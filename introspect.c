@@ -10,7 +10,7 @@ static xmlNode *php_dbus_find_element(xmlNode *element, char *name)
 		if (element->type == XML_ELEMENT_NODE && strcmp(element->name, name) == 0) {
 			return element;
 		}
-	} while(element = element->next);
+	} while((element = element->next));
 	return NULL;
 }
 
@@ -30,10 +30,10 @@ static xmlNode *php_dbus_find_element_by_attribute(xmlNode *element, char *name,
 				{
 					return element;
 				}
-			} while(attrs = attrs->next);
+			} while((attrs = attrs->next));
 			return NULL;
 		}
-	} while(element = element->next);
+	} while((element = element->next));
 	return NULL;
 }
 
@@ -51,7 +51,7 @@ xmlNode *php_dbus_find_interface_node(xmlDocPtr doc, char *interface)
 		if (interfaceNode) {
 			return interfaceNode;
 		}
-	} while(children = children->next);
+	} while((children = children->next));
 	return NULL;
 }
 
@@ -64,7 +64,7 @@ xmlNode *php_dbus_find_method_node(xmlNode *root, char *method)
 		if (methodNode) {
 			return methodNode;
 		}
-	} while(root = root->next);
+	} while((root = root->next));
 	return NULL;
 }
 
@@ -83,13 +83,13 @@ xmlNode **php_dbus_get_next_sig(xmlNode **it, char **sig)
 				if (attrs->type == XML_ATTRIBUTE_NODE && strcmp(attrs->name, "direction") == 0 && strcmp(attrs->children->content, "in") == 0) {
 					dirIn = 1;
 				}
-			} while(attrs = attrs->next);
+			} while((attrs = attrs->next));
 			if (sigFound && dirIn) {
 				return &((*it)->next);
 			}
 			return NULL;
 		}
-	} while(it = &((*it)->next));
+	} while((it = &((*it)->next)));
 	return NULL;
 }
 #if 0

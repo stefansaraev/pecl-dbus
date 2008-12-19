@@ -103,7 +103,7 @@ const zend_function_entry dbus_funcs_dbus_set[] = {
 static void dbus_register_classes(TSRMLS_D);
 static zval * dbus_instantiate(zend_class_entry *pce, zval *object TSRMLS_DC);
 static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg);
-static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inXml, int type);
+static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inXml, int type TSRMLS_DC);
 /* }}} */
 
 ZEND_DECLARE_MODULE_GLOBALS(dbus)
@@ -507,10 +507,15 @@ static void dbus_object_free_storage_dbus_object(void *object TSRMLS_DC)
 	php_dbus_object_obj *intern = (php_dbus_object_obj *)object;
 
 	xmlFreeDoc(intern->introspect_xml_doc);
-	efree(intern->destination);
-	efree(intern->path);
-	efree(intern->interface);
-
+	if (intern->destination) {
+		efree(intern->destination);
+	}
+	if (intern->path) {
+		efree(intern->path);
+	}
+	if (intern->interface) {
+		efree(intern->interface);
+	}
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
 }
@@ -799,7 +804,7 @@ static int dbus_object_initialize(php_dbus_object_obj *dbusobj, php_dbus_obj *db
 	return 1;
 }
 
-static void php_dbus_introspect(php_dbus_object_obj *dbusobj, php_dbus_obj* dbus, char *dest, char *path, char *interface)
+static void php_dbus_introspect(php_dbus_object_obj *dbusobj, php_dbus_obj* dbus, char *dest, char *path, char *interface TSRMLS_DC)
 {
 	DBusMessage     *msg;
 	DBusMessageIter  iter;
@@ -871,7 +876,7 @@ PHP_METHOD(DbusObject, __construct)
 		dbus = (php_dbus_obj *) zend_object_store_get_object(object TSRMLS_CC);
 		dbus_object_initialize(zend_object_store_get_object(getThis() TSRMLS_CC), dbus, destination, path, interface TSRMLS_CC);
 		if (dbus->useIntrospection) {
-			php_dbus_introspect(zend_object_store_get_object(getThis() TSRMLS_CC), dbus, destination, path, interface);
+			php_dbus_introspect(zend_object_store_get_object(getThis() TSRMLS_CC), dbus, destination, path, interface TSRMLS_CC);
 		}
 	}
 }
@@ -960,7 +965,7 @@ PHP_METHOD(Dbus, waitLoop)
 							if (call_user_function_ex(EG(function_table), &object, callback, &retval_ptr, num_elems, method_args, 0, NULL TSRMLS_CC) == SUCCESS) {
 								if (retval_ptr) {
 									reply = dbus_message_new_method_return(msg);
-									php_dbus_append_parameters(reply, retval_ptr, NULL, PHP_DBUS_RETURN_FUNCTION);
+									php_dbus_append_parameters(reply, retval_ptr, NULL, PHP_DBUS_RETURN_FUNCTION TSRMLS_CC);
 
 									if (!dbus_connection_send(dbus->con, reply, NULL)) {
 										dbus_message_unref(msg);
@@ -1060,7 +1065,7 @@ PHP_METHOD(Dbus, registerObject)
 /* }}} */
 
 
-static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMessageIter *iter, char *type_hint);
+static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMessageIter *iter, char *type_hint TSRMLS_DC);
 
 static int dbus_append_var_array(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_array_obj *obj)
 {
@@ -1076,7 +1081,7 @@ static int dbus_append_var_array(php_dbus_data_array *data_array, DBusMessageIte
 	return 1;
 }
 
-static int dbus_append_var_dict(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_dict_obj *obj)
+static int dbus_append_var_dict(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_dict_obj *obj TSRMLS_DC)
 {
 	DBusMessageIter listiter, dictiter;
     char type_string[5];
@@ -1098,7 +1103,7 @@ static int dbus_append_var_dict(php_dbus_data_array *data_array, DBusMessageIter
 		if (zend_hash_get_current_key_ex(Z_ARRVAL_P(obj->elements), &key, &key_len, &num_index, 0, NULL) == HASH_KEY_IS_STRING) {
 			dbus_message_iter_open_container(&listiter, DBUS_TYPE_DICT_ENTRY, NULL, &dictiter );
 			dbus_message_iter_append_basic(&dictiter, DBUS_TYPE_STRING, &key);
-			dbus_append_var(entry, data_array, &dictiter, NULL);
+			dbus_append_var(entry, data_array, &dictiter, NULL TSRMLS_CC);
 			dbus_message_iter_close_container(&listiter, &dictiter);
 		}
 		zend_hash_move_forward(Z_ARRVAL_P(obj->elements));
@@ -1114,7 +1119,7 @@ static int dbus_append_var_dict(php_dbus_data_array *data_array, DBusMessageIter
 		return DBUS_TYPE_##s##_AS_STRING; \
 	}
 
-static char* php_dbus_fetch_child_type(zval *child)
+static char* php_dbus_fetch_child_type(zval *child TSRMLS_DC)
 {
 	zend_object     *obj;
 
@@ -1146,14 +1151,14 @@ static char* php_dbus_fetch_child_type(zval *child)
 	return NULL;
 }
 
-static int dbus_append_var_variant(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_variant_obj *obj)
+static int dbus_append_var_variant(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_variant_obj *obj TSRMLS_DC)
 {
 	DBusMessageIter variant;
 	char *type;
 
-	type = php_dbus_fetch_child_type(obj->data);
+	type = php_dbus_fetch_child_type(obj->data TSRMLS_CC);
 	dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT, type, &variant );
-	dbus_append_var(&(obj->data), data_array, &variant, NULL);
+	dbus_append_var(&(obj->data), data_array, &variant, NULL TSRMLS_CC);
 	dbus_message_iter_close_container(iter, &variant);
 
 	return 1;
@@ -1203,7 +1208,7 @@ static void** php_dbus_get_data_ptr(php_dbus_data_array *d)
 		dbus_append_var_##t(iter, ((php_dbus_##t##_obj*) obj)->data); \
 	}
 
-static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMessageIter *iter, char *type_hint)
+static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMessageIter *iter, char *type_hint TSRMLS_DC)
 {
 	zend_object     *obj;
 	void           **data_copy;
@@ -1216,7 +1221,7 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 			dbus_message_iter_append_basic(iter, DBUS_TYPE_BOOLEAN, *data_copy);
 			break;
 		case IS_LONG: {
-			char type = type_hint ? (char)type_hint[0] : NULL;
+			char type = type_hint ? (char)type_hint[0] : 0;
 			switch (type)
 			{
 				case 'u':
@@ -1250,10 +1255,10 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 				dbus_append_var_array(data_array, iter, (php_dbus_array_obj*) obj);
 			}
 			if (obj->ce == dbus_ce_dbus_dict) {
-				dbus_append_var_dict(data_array, iter, (php_dbus_dict_obj*) obj);
+				dbus_append_var_dict(data_array, iter, (php_dbus_dict_obj*) obj TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_variant) {
-				dbus_append_var_variant(data_array, iter, (php_dbus_variant_obj*) obj);
+				dbus_append_var_variant(data_array, iter, (php_dbus_variant_obj*) obj TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_set) {
 				dbus_append_var_set(data_array, iter, (php_dbus_set_obj*) obj);
@@ -1272,7 +1277,7 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 	return 1;
 }
 
-static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inXml, int type)
+static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inXml, int type TSRMLS_DC)
 {
 	DBusMessageIter dbus_args;
 	HashPosition pos;
@@ -1297,7 +1302,7 @@ static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inX
 			if (it) {
 				it = php_dbus_get_next_sig(it, &sig);
 			}
-			dbus_append_var(entry, &data_array, &dbus_args, it ? sig : NULL);
+			dbus_append_var(entry, &data_array, &dbus_args, it ? sig : NULL TSRMLS_CC);
 			zend_hash_move_forward_ex(Z_ARRVAL_P(data), &pos);
 		}
 	} else if (type == PHP_DBUS_RETURN_FUNCTION) {
@@ -1351,7 +1356,7 @@ static zval* php_dbus_to_zval(DBusMessageIter *args)
 	return return_value;
 }
 
-static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg)
+static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC)
 {
 	DBusMessageIter args;
 	dbus_int64_t    stat;
@@ -1399,7 +1404,7 @@ PHP_METHOD(DbusObject, __call)
 	zend_replace_error_handling(EH_THROW, NULL, NULL TSRMLS_CC);
 
 	msg = dbus_message_new_method_call(dbus_object->destination, dbus_object->path, dbus_object->interface, name);
-	php_dbus_append_parameters(msg, data, dbus_object->introspect_xml ? php_dbus_find_method_node(dbus_object->introspect_xml->children, name) : NULL, PHP_DBUS_CALL_FUNCTION);
+	php_dbus_append_parameters(msg, data, dbus_object->introspect_xml ? php_dbus_find_method_node(dbus_object->introspect_xml->children, name) : NULL, PHP_DBUS_CALL_FUNCTION TSRMLS_CC);
 
 	/* send message and get a handle for a reply */
 	if (!dbus_connection_send_with_reply(dbus_object->dbus->con, msg, &pending, -1)) {
@@ -1426,7 +1431,7 @@ PHP_METHOD(DbusObject, __call)
 		dbus_pending_call_unref(pending);
 		RETURN_NULL();
 	} else {
-		php_dbus_handle_reply(return_value, msg);
+		php_dbus_handle_reply(return_value, msg TSRMLS_CC);
 		dbus_message_unref(msg);   
 		dbus_pending_call_unref(pending);
 	}
@@ -1501,7 +1506,7 @@ PHP_METHOD(DbusSignal, getData)
 		RETURN_FALSE;
 	}
 	signal_obj = (php_dbus_signal_obj *) zend_object_store_get_object(object TSRMLS_CC);
-	php_dbus_handle_reply(return_value, signal_obj->msg);
+	php_dbus_handle_reply(return_value, signal_obj->msg TSRMLS_CC);
 }
 
 static int dbus_array_initialize(php_dbus_array_obj *dbusobj, long type, zval *elements TSRMLS_DC)
