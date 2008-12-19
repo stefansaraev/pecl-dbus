@@ -3,8 +3,10 @@ $d = new Dbus( Dbus::BUS_SESSION, true );
 $d->requestName( 'nl.derickrethans.test' );
 
 class testClass {
-	function myFirstMethod() {
-		echo "yay\n";
+	static function myFirstMethod($a, $b, $c, $d) {
+		echo "yay $a $b $c $d\n";
+		$r = new DbusSet( $a, $b, $c, $d );
+		return $r;
 	}
 }
 

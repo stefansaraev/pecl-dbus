@@ -40,6 +40,7 @@ PHP_METHOD(DbusSignal, getData);
 PHP_METHOD(DbusArray, __construct);
 PHP_METHOD(DbusDict, __construct);
 PHP_METHOD(DbusVariant, __construct);
+PHP_METHOD(DbusSet, __construct);
 
 #define PHP_DBUS_INT_WRAPPER_METHOD_DEF(t) \
 	PHP_METHOD(Dbus##t, __construct);
