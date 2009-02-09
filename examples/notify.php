@@ -14,5 +14,4 @@ $o = $n->Notify( 'Testapp', 0, 'iceweasel', 'Testing http://ez.no', 'Test Applic
 	500
 	);
 var_dump( $o );
-crash();
 ?>
