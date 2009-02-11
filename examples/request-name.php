@@ -4,7 +4,7 @@ $d->requestName( 'nl.derickrethans.test' );
 
 class testClass {
 	static function myFirstMethod($a, $b, $c, $d) {
-		echo "yay $a $b $c $d\n";
+		var_dump("yay", $a, $b, $c, $d );
 		$r = new DbusSet( $a, $b, $c, $d );
 		return $r;
 	}

@@ -246,6 +246,8 @@ static zend_object_value dbus_object_new_dbus_dict(zend_class_entry *class_type 
 static zend_object_value dbus_object_new_dbus_variant(zend_class_entry *class_type TSRMLS_DC);
 static zend_object_value dbus_object_new_dbus_set(zend_class_entry *class_type TSRMLS_DC);
 
+static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data TSRMLS_DC);
+
 #define PHP_DBUS_FORWARD_DECL_TYPE_FUNCS(t) \
 	static void dbus_object_free_storage_dbus_##t(void *object TSRMLS_DC); \
 	static zend_object_value dbus_object_new_dbus_##t(zend_class_entry *class_type TSRMLS_DC);
@@ -1344,6 +1346,14 @@ static zval* php_dbus_to_zval(DBusMessageIter *args)
 				zval *val = php_dbus_to_zval(&subiter);
 				add_next_index_zval(return_value, val);
 			} while (dbus_message_iter_next(&subiter));
+			break;
+		case DBUS_TYPE_VARIANT:
+			dbus_message_iter_recurse(args, &subiter);
+			dbus_instantiate(dbus_ce_dbus_variant, return_value TSRMLS_CC);
+			{
+				zval *val = php_dbus_to_zval(&subiter);
+				dbus_variant_initialize(zend_object_store_get_object(return_value TSRMLS_CC), val TSRMLS_CC);
+			}
 			break;
 		default:
 			if (dbus_message_iter_get_arg_type(args) == DBUS_TYPE_DOUBLE) {
