@@ -9,15 +9,11 @@ $b = 0;
 do
 {
 	$s = $d->waitLoop( 1000 );
-	if ( $s ) {
-		echo "signal seen\n";
-		var_dump( $s->getData() );
-	}
 	if ( $s && $s->matches( "org.freedesktop.PowerManagement.Backlight", 'BrightnessChanged' ) )
 	{
 		$b = $s->getData();
+		echo "Brightness: {$b[0]}\n";
 	}
-	echo ".";
 }
-while ( $b < 100 );
+while ( $b[0] < 100 );
 ?>

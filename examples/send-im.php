@@ -1,8 +1,8 @@
 <?php
 $d = new Dbus;
 $n = new DbusObject( $d, "im.pidgin.purple.PurpleService", "/im/pidgin/purple/PurpleObject", "im.pidgin.purple.PurpleInterface");
-//var_dump( $n->PurpleAccountsGetAllActive() );
-$buddies = $n->PurpleFindBuddies( new DBusInt32( 5816 ), "" );
+$buddies = $n->PurpleFindBuddies( new DBusInt32( 6849 ), "" );
+//$buddies = $n->PurpleFindBuddies( 6849, "" );
 foreach( $buddies[0] as $item )
 {
 	$b = $n->PurpleBuddyGetName( $item );
