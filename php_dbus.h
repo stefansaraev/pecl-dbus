@@ -37,8 +37,10 @@ PHP_METHOD(Dbus, requestName);
 PHP_METHOD(Dbus, registerObject);
 PHP_METHOD(DbusObject, __construct);
 PHP_METHOD(DbusObject, __call);
+PHP_METHOD(DbusSignal, __construct);
 PHP_METHOD(DbusSignal, matches);
 PHP_METHOD(DbusSignal, getData);
+PHP_METHOD(DbusSignal, send);
 
 PHP_METHOD(DbusArray, __construct);
 PHP_METHOD(DbusDict, __construct);

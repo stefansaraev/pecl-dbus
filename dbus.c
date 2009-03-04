@@ -60,8 +60,10 @@ const zend_function_entry dbus_funcs_dbus_object[] = {
 };
 
 const zend_function_entry dbus_funcs_dbus_signal[] = {
+	PHP_ME(DbusSignal, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(DbusSignal, matches,     NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(DbusSignal, getData,     NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(DbusSignal, send,        NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 
@@ -153,9 +155,17 @@ struct _php_dbus_object_obj {
     xmlNode         *introspect_xml;
 };
 
+#define PHP_DBUS_SIGNAL_IN  1
+#define PHP_DBUS_SIGNAL_OUT 2
+
 struct _php_dbus_signal_obj {
 	zend_object      std;
+	php_dbus_obj    *dbus;
 	DBusMessage     *msg;
+	char            *object;
+	char            *interface;
+	char            *signal;
+	int              direction;
 };
 
 struct _php_dbus_array_obj {
@@ -790,7 +800,7 @@ static int dbus_initialize(php_dbus_obj *dbusobj, int type, int introspect TSRML
 }
 
 
-/* {{{ proto Dbus::__construct([string time[, DateTimeZone object]])
+/* {{{ proto Dbus::__construct([int type[, int useIntrospection]])
    Creates new Dbus object
 */
 PHP_METHOD(Dbus, __construct)
@@ -924,14 +934,15 @@ PHP_METHOD(Dbus, waitLoop)
 				dbus_instantiate(dbus_ce_dbus_signal, return_value TSRMLS_CC);
 				signalobj = (php_dbus_signal_obj *) zend_object_store_get_object(return_value TSRMLS_CC);
 				signalobj->msg = msg;
+				signalobj->direction = PHP_DBUS_SIGNAL_IN;
 				break;
 			case DBUS_MESSAGE_TYPE_METHOD_CALL:
-				printf("dest: %s\n", dbus_message_get_destination(msg));
+/*				printf("dest: %s\n", dbus_message_get_destination(msg));
 				printf("path: %s\n", dbus_message_get_path(msg));
 				printf("inte: %s\n", dbus_message_get_interface(msg));
 				printf("memb: %s\n", dbus_message_get_member(msg));
 
-				/* See if we can find a class for this one */
+*/				/* See if we can find a class for this one */
 				spprintf(&key, 0, "%s:%s", dbus_message_get_path(msg), dbus_message_get_interface(msg));
 				if (zend_hash_find(&(dbus->objects), key, strlen(key) + 1, (void**) &class) == SUCCESS) {
 					/* Now we have the class, we can see if the callback method exists */
@@ -1501,6 +1512,41 @@ PHP_METHOD(Dbus, addWatch)
 	RETURN_TRUE;
 }
 
+static int dbus_signal_initialize(php_dbus_signal_obj *dbusobj, php_dbus_obj *dbus, char *object, char *interface, char *signal TSRMLS_DC)
+{
+	dbusobj->dbus = dbus;
+	dbusobj->object = estrdup(object);
+	dbusobj->interface = estrdup(interface);
+	dbusobj->signal = estrdup(signal);
+
+	return 1;
+}
+
+
+/* {{{ proto DbusSignal::__construct(Dbus $dbus, string object, string interface, string signal)
+   Creates new DbusSignal object
+*/
+PHP_METHOD(DbusSignal, __construct)
+{
+	zval *object;
+	php_dbus_obj *dbus;
+	char *object_name, *interface, *signal;
+	int   object_name_len, interface_len, signal_len;
+
+	php_set_error_handling(EH_THROW, NULL TSRMLS_CC);
+	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osss",
+		&object, dbus_ce_dbus,
+		&object_name, &object_name_len, &interface, &interface_len, 
+		&signal, &signal_len))
+	{
+		Z_ADDREF_P(object);
+		dbus = (php_dbus_obj *) zend_object_store_get_object(object TSRMLS_CC);
+		dbus_signal_initialize(zend_object_store_get_object(getThis() TSRMLS_CC), dbus, object_name, interface, signal TSRMLS_CC);
+	}
+	php_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
+}
+/* }}} */
+
 PHP_METHOD(DbusSignal, matches)
 {
 	char *interface;
@@ -1532,7 +1578,62 @@ PHP_METHOD(DbusSignal, getData)
 		RETURN_FALSE;
 	}
 	signal_obj = (php_dbus_signal_obj *) zend_object_store_get_object(object TSRMLS_CC);
+
+	if (signal_obj->direction == PHP_DBUS_SIGNAL_OUT) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "This signal is outgoing, and therefore does not have data.");
+		RETURN_FALSE;
+	}
+
 	php_dbus_handle_reply(return_value, signal_obj->msg TSRMLS_CC);
+}
+
+PHP_METHOD(DbusSignal, send)
+{
+	zval ***data = NULL;
+	int     elements = ZEND_NUM_ARGS();
+	php_dbus_data_array data_array;
+	php_dbus_signal_obj *signal_obj;
+	DBusPendingCall* pending;
+	DBusMessageIter dbus_args;
+	int i;
+	dbus_uint32_t serial = 0;
+
+	php_set_error_handling(EH_THROW, NULL TSRMLS_CC);
+	signal_obj = (php_dbus_signal_obj *) zend_object_store_get_object(getThis() TSRMLS_CC);
+
+	if (signal_obj->direction == PHP_DBUS_SIGNAL_IN) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "This signal is incoming, and therefore can not be send.");
+		RETURN_FALSE;
+	}
+
+	data = (zval ***) safe_emalloc(elements, sizeof(zval **), 1);
+	if (FAILURE == zend_get_parameters_array_ex(elements, data)) {
+		return;
+	}
+
+	data_array.count = 0;
+	data_array.data = emalloc(64 * sizeof(void**));
+	data_array.size = 64;
+	signal_obj->msg = dbus_message_new_signal(signal_obj->object, signal_obj->interface, signal_obj->signal);
+	dbus_message_iter_init_append(signal_obj->msg, &dbus_args);
+
+	for (i = 0; i < elements; i++) {
+		dbus_append_var(data[i], &data_array, &dbus_args, NULL TSRMLS_CC);
+	}
+
+	// send the message and flush the connection
+	if (!dbus_connection_send(signal_obj->dbus->con, signal_obj->msg, &serial)) {
+		dbus_message_unref(signal_obj->msg);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Out of memory.");
+	}
+	dbus_connection_flush(signal_obj->dbus->con);
+
+	for (i = 0; i < data_array.count; i++) {
+		efree(data_array.data[i]);
+	}
+
+
+	php_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 }
 
 static int dbus_array_initialize(php_dbus_array_obj *dbusobj, long type, zval *elements TSRMLS_DC)
