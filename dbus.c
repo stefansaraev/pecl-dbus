@@ -905,17 +905,119 @@ PHP_METHOD(DbusObject, __construct)
 }
 /* }}} */
 
+static void php_dbus_accept_incoming_signal(DBusMessage *msg, zval **return_value TSRMLS_DC)
+{
+	php_dbus_signal_obj *signalobj;
+	dbus_instantiate(dbus_ce_dbus_signal, *return_value TSRMLS_CC);
+	signalobj = (php_dbus_signal_obj *) zend_object_store_get_object(*return_value TSRMLS_CC);
+	signalobj->msg = msg;
+	signalobj->direction = PHP_DBUS_SIGNAL_IN;
+}
+
+static void php_dbus_do_error_message(php_dbus_obj *dbus, DBusMessage *msg, char *type, char *message)
+{
+	DBusMessage *reply;
+
+	// it's a different kind of method, so send the
+	// "unknown method" error
+	dbus_uint32_t serial = 0;
+	reply = dbus_message_new_error(msg, type, message);
+	dbus_connection_send(dbus->con, reply, &serial);
+	dbus_connection_flush(dbus->con);
+	dbus_message_unref(reply);
+}
+
+static void php_dbus_accept_incoming_method_call(php_dbus_obj *dbus, DBusMessage *msg, zval **return_value TSRMLS_DC)
+{
+	char *key, *class;
+	DBusMessage *reply;
+
+	/* See if we can find a class mapping for this object */
+	spprintf(&key, 0, "%s:%s", dbus_message_get_path(msg), dbus_message_get_interface(msg));
+	if (zend_hash_find(&(dbus->objects), key, strlen(key) + 1, (void**) &class) == SUCCESS) {
+		zend_class_entry **pce;
+
+		/* We found a registered class, now lets see if this class is actually available */
+		if (zend_lookup_class(class, strlen(class), &pce TSRMLS_CC) == SUCCESS) {
+			char *lcname;
+			const char *member = dbus_message_get_member(msg);
+			zend_class_entry *ce;
+
+			ce = *pce;
+
+			/* Now we have the class, we can see if the callback method exists */
+			lcname = zend_str_tolower_dup(member, strlen(member));
+			if (!zend_hash_exists(&ce->function_table, lcname, strlen(member) + 1)) {
+				// If no method is found, we try to see whether we
+				// can do some introspection stuff for our built-in
+				// classes.
+				if (strcmp("introspect", lcname) == 0) {
+				} else {
+					php_dbus_do_error_message(dbus, msg, DBUS_ERROR_UNKNOWN_METHOD, member);
+					efree(lcname);
+				}
+			} else {
+				HashTable *params_ar;
+				int num_elems, element = 0;
+				zval *params, ***method_args = NULL, *retval_ptr;
+				zval *callback, *object = NULL;
+
+				ALLOC_ZVAL(params);
+				php_dbus_handle_reply(params, msg);
+
+				ALLOC_ZVAL(callback);
+				array_init(callback);
+				add_next_index_string(callback, class, 0);
+				add_next_index_string(callback, member, 0);
+
+				params_ar = HASH_OF(params);
+				num_elems = zend_hash_num_elements(params_ar);
+				method_args = (zval ***) safe_emalloc(sizeof(zval **), num_elems, 0);
+
+				for (zend_hash_internal_pointer_reset(params_ar);
+					zend_hash_get_current_data(params_ar, (void **) &(method_args[element])) == SUCCESS;
+					zend_hash_move_forward(params_ar)
+				) {
+					element++;
+				}
+
+				if (call_user_function_ex(EG(function_table), &object, callback, &retval_ptr, num_elems, method_args, 0, NULL TSRMLS_CC) == SUCCESS) {
+					if (retval_ptr) {
+						reply = dbus_message_new_method_return(msg);
+						php_dbus_append_parameters(reply, retval_ptr, NULL, PHP_DBUS_RETURN_FUNCTION TSRMLS_CC);
+
+						if (!dbus_connection_send(dbus->con, reply, NULL)) {
+							dbus_message_unref(msg);
+							php_error_docref(NULL TSRMLS_CC, E_WARNING, "Out of memory.");
+						}
+
+						dbus_connection_flush(dbus->con);
+
+						/* free message */
+						dbus_message_unref(reply);
+					}
+				} else {
+					php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to call %s()", Z_STRVAL_P(callback));
+				}
+				efree(method_args);
+			}
+		} else {
+			php_dbus_do_error_message(dbus, msg, DBUS_ERROR_UNKNOWN_METHOD, "call back class not found");
+		}
+	} else {
+		php_dbus_do_error_message(dbus, msg, DBUS_ERROR_UNKNOWN_METHOD, "call back class not registered");
+	}
+}
+
 /* {{{ proto Dbus::waitLoop()
    Checks for received signals or method calls.
 */
 PHP_METHOD(Dbus, waitLoop)
 {
 	zval *object;
-	php_dbus_obj *dbus;
-	php_dbus_signal_obj *signalobj;
 	long timeout = 0;
-	DBusMessage *msg, *reply;
-	char *key, *class;
+	DBusMessage *msg;
+	php_dbus_obj *dbus;
 
 	php_set_error_handling(EH_THROW, NULL TSRMLS_CC);
 	if (FAILURE == zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(),
@@ -931,96 +1033,10 @@ PHP_METHOD(Dbus, waitLoop)
 	if (msg != NULL) {
 		switch (dbus_message_get_type(msg)) {
 			case DBUS_MESSAGE_TYPE_SIGNAL:
-				dbus_instantiate(dbus_ce_dbus_signal, return_value TSRMLS_CC);
-				signalobj = (php_dbus_signal_obj *) zend_object_store_get_object(return_value TSRMLS_CC);
-				signalobj->msg = msg;
-				signalobj->direction = PHP_DBUS_SIGNAL_IN;
+				php_dbus_accept_incoming_signal(msg, &return_value TSRMLS_CC);
 				break;
 			case DBUS_MESSAGE_TYPE_METHOD_CALL:
-/*				printf("dest: %s\n", dbus_message_get_destination(msg));
-				printf("path: %s\n", dbus_message_get_path(msg));
-				printf("inte: %s\n", dbus_message_get_interface(msg));
-				printf("memb: %s\n", dbus_message_get_member(msg));
-
-*/				/* See if we can find a class for this one */
-				spprintf(&key, 0, "%s:%s", dbus_message_get_path(msg), dbus_message_get_interface(msg));
-				if (zend_hash_find(&(dbus->objects), key, strlen(key) + 1, (void**) &class) == SUCCESS) {
-					/* Now we have the class, we can see if the callback method exists */
-					char *lcname;
-					zend_class_entry *ce, **pce;
-					const char *member = dbus_message_get_member(msg);
-
-					if (zend_lookup_class(class, strlen(class), &pce TSRMLS_CC) == SUCCESS) {	
-						ce = *pce;
-
-						lcname = zend_str_tolower_dup(member, strlen(member));
-						if (zend_hash_exists(&ce->function_table, lcname, strlen(member) + 1) == FAILURE) {
-							dbus_uint32_t serial = 0;
-							efree(lcname);
-							reply = dbus_message_new_error(msg, DBUS_ERROR_UNKNOWN_METHOD, class);
-							dbus_connection_send(dbus->con, reply, &serial);
-							dbus_connection_flush(dbus->con);
-							dbus_message_unref(reply);
-						} else {
-							HashTable *params_ar;
-							int num_elems, element = 0;
-							zval *params, ***method_args = NULL, *retval_ptr;
-							zval *callback, *object = NULL;
-
-							ALLOC_ZVAL(params);
-							php_dbus_handle_reply(params, msg);
-
-							ALLOC_ZVAL(callback);
-							array_init(callback);
-							add_next_index_string(callback, class, 0);
-							add_next_index_string(callback, member, 0);
-
-							params_ar = HASH_OF(params);
-							num_elems = zend_hash_num_elements(params_ar);
-							method_args = (zval ***) safe_emalloc(sizeof(zval **), num_elems, 0);
-
-							for (zend_hash_internal_pointer_reset(params_ar);
-								zend_hash_get_current_data(params_ar, (void **) &(method_args[element])) == SUCCESS;
-								zend_hash_move_forward(params_ar)
-							) {
-								element++;
-							}
-
-							if (call_user_function_ex(EG(function_table), &object, callback, &retval_ptr, num_elems, method_args, 0, NULL TSRMLS_CC) == SUCCESS) {
-								if (retval_ptr) {
-									reply = dbus_message_new_method_return(msg);
-									php_dbus_append_parameters(reply, retval_ptr, NULL, PHP_DBUS_RETURN_FUNCTION TSRMLS_CC);
-
-									if (!dbus_connection_send(dbus->con, reply, NULL)) {
-										dbus_message_unref(msg);
-										php_error_docref(NULL TSRMLS_CC, E_WARNING, "Out of memory.");
-									}
-
-									dbus_connection_flush(dbus->con);
-
-									/* free message */
-									dbus_message_unref(reply);
-								}
-							} else {
-								php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to call %s()", Z_STRVAL_P(callback));
-							}
-							efree(method_args);
-						}
-					} else {
-						dbus_uint32_t serial = 0;
-						reply = dbus_message_new_error(msg, DBUS_ERROR_UNKNOWN_METHOD, "call back class not found");
-						dbus_connection_send(dbus->con, reply, &serial);
-						dbus_connection_flush(dbus->con);
-						dbus_message_unref(reply);
-					}
-				} else {
-					dbus_uint32_t serial = 0;
-					reply = dbus_message_new_error(msg, DBUS_ERROR_UNKNOWN_METHOD, "call back class not found");
-					dbus_connection_send(dbus->con, reply, &serial);
-					dbus_connection_flush(dbus->con);
-					dbus_message_unref(reply);
-				}
-				
+				php_dbus_accept_incoming_method_call(dbus, msg, &return_value TSRMLS_CC);
 				break;
 		}
 	}

@@ -11,6 +11,7 @@ class testClass {
 }
 
 $d->registerObject( '/nl/derickrethans/test', 'nl.derickrethans.test', 'testClass' );
+$d->registerObject( '/nl/derickrethans/test', 'nl.derickrethans.test3', 'doesNotExist' );
 
 //$n = new DbusObject( $d, "org.gnome.ScreenSaver", "/org/gnome/ScreenSaver", "org.gnome.ScreenSaver");
 //var_dump($n->GetActive());
