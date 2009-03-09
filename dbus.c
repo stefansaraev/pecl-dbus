@@ -927,10 +927,57 @@ static void php_dbus_do_error_message(php_dbus_obj *dbus, DBusMessage *msg, char
 	dbus_message_unref(reply);
 }
 
+static void php_dbus_do_method_call(php_dbus_obj *dbus, DBusMessage *msg, char *class, char *member TSRMLS_DC)
+{
+	HashTable *params_ar;
+	int num_elems, element = 0;
+	zval *params, ***method_args = NULL, *retval_ptr;
+	zval *callback, *object = NULL;
+	DBusMessage *reply;
+
+	ALLOC_ZVAL(params);
+	php_dbus_handle_reply(params, msg);
+
+	ALLOC_ZVAL(callback);
+	array_init(callback);
+	add_next_index_string(callback, class, 0);
+	add_next_index_string(callback, member, 0);
+
+	params_ar = HASH_OF(params);
+	num_elems = zend_hash_num_elements(params_ar);
+	method_args = (zval ***) safe_emalloc(sizeof(zval **), num_elems, 0);
+
+	for (zend_hash_internal_pointer_reset(params_ar);
+		zend_hash_get_current_data(params_ar, (void **) &(method_args[element])) == SUCCESS;
+		zend_hash_move_forward(params_ar)
+	) {
+		element++;
+	}
+
+	if (call_user_function_ex(EG(function_table), &object, callback, &retval_ptr, num_elems, method_args, 0, NULL TSRMLS_CC) == SUCCESS) {
+		if (retval_ptr) {
+			reply = dbus_message_new_method_return(msg);
+			php_dbus_append_parameters(reply, retval_ptr, NULL, PHP_DBUS_RETURN_FUNCTION TSRMLS_CC);
+
+			if (!dbus_connection_send(dbus->con, reply, NULL)) {
+				dbus_message_unref(msg);
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Out of memory.");
+			}
+
+			dbus_connection_flush(dbus->con);
+
+			/* free message */
+			dbus_message_unref(reply);
+		}
+	} else {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to call %s()", Z_STRVAL_P(callback));
+	}
+	efree(method_args);
+}
+
 static void php_dbus_accept_incoming_method_call(php_dbus_obj *dbus, DBusMessage *msg, zval **return_value TSRMLS_DC)
 {
 	char *key, *class;
-	DBusMessage *reply;
 
 	/* See if we can find a class mapping for this object */
 	spprintf(&key, 0, "%s:%s", dbus_message_get_path(msg), dbus_message_get_interface(msg));
@@ -957,49 +1004,7 @@ static void php_dbus_accept_incoming_method_call(php_dbus_obj *dbus, DBusMessage
 					efree(lcname);
 				}
 			} else {
-				HashTable *params_ar;
-				int num_elems, element = 0;
-				zval *params, ***method_args = NULL, *retval_ptr;
-				zval *callback, *object = NULL;
-
-				ALLOC_ZVAL(params);
-				php_dbus_handle_reply(params, msg);
-
-				ALLOC_ZVAL(callback);
-				array_init(callback);
-				add_next_index_string(callback, class, 0);
-				add_next_index_string(callback, member, 0);
-
-				params_ar = HASH_OF(params);
-				num_elems = zend_hash_num_elements(params_ar);
-				method_args = (zval ***) safe_emalloc(sizeof(zval **), num_elems, 0);
-
-				for (zend_hash_internal_pointer_reset(params_ar);
-					zend_hash_get_current_data(params_ar, (void **) &(method_args[element])) == SUCCESS;
-					zend_hash_move_forward(params_ar)
-				) {
-					element++;
-				}
-
-				if (call_user_function_ex(EG(function_table), &object, callback, &retval_ptr, num_elems, method_args, 0, NULL TSRMLS_CC) == SUCCESS) {
-					if (retval_ptr) {
-						reply = dbus_message_new_method_return(msg);
-						php_dbus_append_parameters(reply, retval_ptr, NULL, PHP_DBUS_RETURN_FUNCTION TSRMLS_CC);
-
-						if (!dbus_connection_send(dbus->con, reply, NULL)) {
-							dbus_message_unref(msg);
-							php_error_docref(NULL TSRMLS_CC, E_WARNING, "Out of memory.");
-						}
-
-						dbus_connection_flush(dbus->con);
-
-						/* free message */
-						dbus_message_unref(reply);
-					}
-				} else {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to call %s()", Z_STRVAL_P(callback));
-				}
-				efree(method_args);
+				php_dbus_do_method_call(dbus, msg, class, member TSRMLS_CC);
 			}
 		} else {
 			php_dbus_do_error_message(dbus, msg, DBUS_ERROR_UNKNOWN_METHOD, "call back class not found");
@@ -1067,13 +1072,8 @@ PHP_METHOD(Dbus, requestName)
 
 	/* request our name on the bus and check for errors */
 	ret = dbus_bus_request_name(dbus->con, name, DBUS_NAME_FLAG_REPLACE_EXISTING, &err);
-	if (dbus_error_is_set(&err)) { 
-		fprintf(stderr, "Name Error (%s)\n", err.message);
-		dbus_error_free(&err);
-	}
 	if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) { 
-		fprintf(stderr, "Not Primary Owner (%d)\n", ret);
-		exit(1);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Not Primary Owner (%d)\n", ret);
 	}
 	php_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 }
