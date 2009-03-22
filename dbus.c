@@ -108,7 +108,7 @@ const zend_function_entry dbus_funcs_dbus_set[] = {
 
 static void dbus_register_classes(TSRMLS_D);
 static zval * dbus_instantiate(zend_class_entry *pce, zval *object TSRMLS_DC);
-static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg);
+static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC);
 static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inXml, int type TSRMLS_DC);
 /* }}} */
 
@@ -142,7 +142,7 @@ struct _php_dbus_obj {
 	zend_object     std;
 	DBusConnection *con;
 	int             useIntrospection;
-	HashTable       objects; // A hash with all the registered objects that can be called
+	HashTable       objects; /* A hash with all the registered objects that can be called */
 };
 
 struct _php_dbus_object_obj {
@@ -570,6 +570,14 @@ static void dbus_object_free_storage_dbus_signal(void *object TSRMLS_DC)
 	dbus_message_unref(intern->msg);
 
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
+	
+	if (intern->interface) {
+		efree(intern->interface);
+	}
+	if (intern->signal) {
+		efree(intern->signal);
+	}
+	efree(intern->object);
 	efree(object);
 }
 
@@ -918,8 +926,8 @@ static void php_dbus_do_error_message(php_dbus_obj *dbus, DBusMessage *msg, char
 {
 	DBusMessage *reply;
 
-	// it's a different kind of method, so send the
-	// "unknown method" error
+	/* it's a different kind of method, so send the
+	 * "unknown method" error */
 	dbus_uint32_t serial = 0;
 	reply = dbus_message_new_error(msg, type, message);
 	dbus_connection_send(dbus->con, reply, &serial);
@@ -936,7 +944,7 @@ static void php_dbus_do_method_call(php_dbus_obj *dbus, DBusMessage *msg, char *
 	DBusMessage *reply;
 
 	ALLOC_ZVAL(params);
-	php_dbus_handle_reply(params, msg);
+	php_dbus_handle_reply(params, msg TSRMLS_CC);
 
 	ALLOC_ZVAL(callback);
 	array_init(callback);
@@ -995,9 +1003,9 @@ static void php_dbus_accept_incoming_method_call(php_dbus_obj *dbus, DBusMessage
 			/* Now we have the class, we can see if the callback method exists */
 			lcname = zend_str_tolower_dup(member, strlen(member));
 			if (!zend_hash_exists(&ce->function_table, lcname, strlen(member) + 1)) {
-				// If no method is found, we try to see whether we
-				// can do some introspection stuff for our built-in
-				// classes.
+				/* If no method is found, we try to see whether we
+				 * can do some introspection stuff for our built-in
+				 * classes. */
 				if (strcmp("introspect", lcname) == 0) {
 				} else {
 					php_dbus_do_error_message(dbus, msg, DBUS_ERROR_UNKNOWN_METHOD, member);
@@ -1207,13 +1215,12 @@ static int dbus_append_var_variant(php_dbus_data_array *data_array, DBusMessageI
 	return 1;
 }
 
-static int dbus_append_var_set(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_set_obj *obj)
+static int dbus_append_var_set(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_set_obj *obj TSRMLS_DC)
 {
-	char *type;
 	int   i;
 
 	for (i = 0; i < obj->data_elements; i++) {
-		dbus_append_var(&(obj->data[i]), data_array, iter, NULL);
+		dbus_append_var(&(obj->data[i]), data_array, iter, NULL TSRMLS_CC);
 	}
 
 	return 1;
@@ -1304,7 +1311,7 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 				dbus_append_var_variant(data_array, iter, (php_dbus_variant_obj*) obj TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_set) {
-				dbus_append_var_set(data_array, iter, (php_dbus_set_obj*) obj);
+				dbus_append_var_set(data_array, iter, (php_dbus_set_obj*) obj TSRMLS_CC);
 			}
 			PHP_DBUS_MARSHAL_TO_DBUS_CASE(byte);
 			PHP_DBUS_MARSHAL_TO_DBUS_CASE(bool);
@@ -1349,17 +1356,18 @@ static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inX
 			zend_hash_move_forward_ex(Z_ARRVAL_P(data), &pos);
 		}
 	} else if (type == PHP_DBUS_RETURN_FUNCTION) {
-		dbus_append_var(&data, &data_array, &dbus_args, NULL);
+		dbus_append_var(&data, &data_array, &dbus_args, NULL TSRMLS_CC);
 	}
 
 	for (i = 0; i < data_array.count; i++) {
 		efree(data_array.data[i]);
 	}
+	efree(data_array.data);
 
 	return 1;
 }
 
-static zval* php_dbus_to_zval(DBusMessageIter *args)
+static zval* php_dbus_to_zval(DBusMessageIter *args TSRMLS_DC)
 {
 	zval *return_value;
 	DBusMessageIter subiter;
@@ -1370,7 +1378,7 @@ static zval* php_dbus_to_zval(DBusMessageIter *args)
 			dbus_message_iter_recurse(args, &subiter);
 			array_init(return_value);
 			do {
-				zval *val = php_dbus_to_zval(&subiter);
+				zval *val = php_dbus_to_zval(&subiter TSRMLS_CC);
 				add_next_index_zval(return_value, val);
 			} while (dbus_message_iter_next(&subiter));
 			break;
@@ -1378,7 +1386,7 @@ static zval* php_dbus_to_zval(DBusMessageIter *args)
 			dbus_message_iter_recurse(args, &subiter);
 			dbus_instantiate(dbus_ce_dbus_variant, return_value TSRMLS_CC);
 			{
-				zval *val = php_dbus_to_zval(&subiter);
+				zval *val = php_dbus_to_zval(&subiter TSRMLS_CC);
 				dbus_variant_initialize(zend_object_store_get_object(return_value TSRMLS_CC), val TSRMLS_CC);
 			}
 			break;
@@ -1430,7 +1438,7 @@ static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC)
 
 	array_init(return_value);
 	do {
-		val = php_dbus_to_zval(&args);
+		val = php_dbus_to_zval(&args TSRMLS_CC);
 		add_next_index_zval(return_value, val);
 	} while (dbus_message_iter_next(&args));
 
@@ -1624,6 +1632,7 @@ PHP_METHOD(DbusSignal, send)
 
 	data = (zval ***) safe_emalloc(elements, sizeof(zval **), 1);
 	if (FAILURE == zend_get_parameters_array_ex(elements, data)) {
+		efree(data);
 		return;
 	}
 
@@ -1637,7 +1646,7 @@ PHP_METHOD(DbusSignal, send)
 		dbus_append_var(data[i], &data_array, &dbus_args, NULL TSRMLS_CC);
 	}
 
-	// send the message and flush the connection
+	/* send the message and flush the connection */
 	if (!dbus_connection_send(signal_obj->dbus->con, signal_obj->msg, &serial)) {
 		dbus_message_unref(signal_obj->msg);
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Out of memory.");
@@ -1647,7 +1656,8 @@ PHP_METHOD(DbusSignal, send)
 	for (i = 0; i < data_array.count; i++) {
 		efree(data_array.data[i]);
 	}
-
+	efree(data_array.data);
+	efree(data);
 
 	php_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 }

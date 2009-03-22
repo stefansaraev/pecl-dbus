@@ -3,7 +3,7 @@ dnl $ Id: dbus 1.0.1$
 dnl
 
 PHP_ARG_ENABLE(dbus, whether to enable dbus functions,
-[  --with-dbus[=DIR]       Enable dbus support], yes)
+[  --enable-dbus[=DIR]       Enable dbus support], yes)
 
 if test -z "$PHP_LIBXML_DIR"; then
   PHP_ARG_WITH(libxml-dir, libxml2 install dir,
