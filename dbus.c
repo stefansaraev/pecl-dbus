@@ -577,7 +577,9 @@ static void dbus_object_free_storage_dbus_signal(void *object TSRMLS_DC)
 	if (intern->signal) {
 		efree(intern->signal);
 	}
-	efree(intern->object);
+	if (intern->object) {
+		efree(intern->object);
+	}
 	efree(object);
 }
 
