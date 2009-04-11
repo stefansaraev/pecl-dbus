@@ -1167,12 +1167,49 @@ static int dbus_append_var_dict(php_dbus_data_array *data_array, DBusMessageIter
 	return 1;
 }
 
-#define PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(t,s) \
+#define PHP_DBUS_MARSHAL_FIND_TYPE_CASE(t,s) \
+	if (obj->ce == dbus_ce_dbus_##t) { \
+		return DBUS_TYPE_##s; \
+	}
+
+static int php_dbus_fetch_child_type(zval *child TSRMLS_DC)
+{
+	zend_object     *obj;
+
+	switch (Z_TYPE_P(child)) {
+		case IS_BOOL:
+			return DBUS_TYPE_BOOLEAN;
+		case IS_LONG:
+			return DBUS_TYPE_INT32;
+		case IS_DOUBLE:
+			return DBUS_TYPE_DOUBLE;
+		case IS_STRING:
+			return DBUS_TYPE_STRING;
+		case IS_OBJECT:
+			/* We need to check for DbusArray, DbusDict and DbusVariant and the DBus types */
+			obj = (zend_object *) zend_object_store_get_object(child TSRMLS_CC);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(variant, VARIANT);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(array, ARRAY);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(byte, BYTE);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(bool, BOOLEAN);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(int16, INT16);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(uint16, UINT16);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(int32, INT32);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(uint32, UINT32);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(int64, INT64);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(uint64, UINT64);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE(double, DOUBLE);
+	}
+
+	return NULL;
+}
+
+#define PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(t,s) \
 	if (obj->ce == dbus_ce_dbus_##t) { \
 		return DBUS_TYPE_##s##_AS_STRING; \
 	}
 
-static char* php_dbus_fetch_child_type(zval *child TSRMLS_DC)
+static char* php_dbus_fetch_child_type_as_string(zval *child TSRMLS_DC)
 {
 	zend_object     *obj;
 
@@ -1188,17 +1225,17 @@ static char* php_dbus_fetch_child_type(zval *child TSRMLS_DC)
 		case IS_OBJECT:
 			/* We need to check for DbusArray, DbusDict and DbusVariant and the DBus types */
 			obj = (zend_object *) zend_object_store_get_object(child TSRMLS_CC);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(variant, VARIANT);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(array, ARRAY);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(byte, BYTE);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(bool, BOOLEAN);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(int16, INT16);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(uint16, UINT16);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(int32, INT32);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(uint32, UINT32);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(int64, INT64);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(uint64, UINT64);
-			PHP_DBUS_MARSHAL_FIND_VARIANT_TYPE_CASE(double, DOUBLE);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(variant, VARIANT);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(array, ARRAY);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(byte, BYTE);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(bool, BOOLEAN);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(int16, INT16);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(uint16, UINT16);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(int32, INT32);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(uint32, UINT32);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(int64, INT64);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(uint64, UINT64);
+			PHP_DBUS_MARSHAL_FIND_TYPE_CASE_AS_STRING(double, DOUBLE);
 	}
 
 	return NULL;
@@ -1209,7 +1246,7 @@ static int dbus_append_var_variant(php_dbus_data_array *data_array, DBusMessageI
 	DBusMessageIter variant;
 	char *type;
 
-	type = php_dbus_fetch_child_type(obj->data TSRMLS_CC);
+	type = php_dbus_fetch_child_type_as_string(obj->data TSRMLS_CC);
 	dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT, type, &variant );
 	dbus_append_var(&(obj->data), data_array, &variant, NULL TSRMLS_CC);
 	dbus_message_iter_close_container(iter, &variant);
@@ -1369,27 +1406,70 @@ static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inX
 	return 1;
 }
 
-static zval* php_dbus_to_zval(DBusMessageIter *args TSRMLS_DC)
+static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 {
 	zval *return_value;
 	DBusMessageIter subiter;
 	
+	*key = NULL;
 	MAKE_STD_ZVAL(return_value);
 	switch (dbus_message_iter_get_arg_type(args)) {
 		case DBUS_TYPE_ARRAY:
-			dbus_message_iter_recurse(args, &subiter);
-			array_init(return_value);
-			do {
-				zval *val = php_dbus_to_zval(&subiter TSRMLS_CC);
-				add_next_index_zval(return_value, val);
-			} while (dbus_message_iter_next(&subiter));
+			{
+				int init = 0;
+
+				dbus_message_iter_recurse(args, &subiter);
+				do {
+					zval *new_key = NULL;
+					php_dbus_dict_obj *dictobj;
+					zval *val = php_dbus_to_zval(&subiter, &new_key TSRMLS_CC);
+
+					if (new_key) {
+						if (!init) {
+							dbus_instantiate(dbus_ce_dbus_dict, return_value TSRMLS_CC);
+							dictobj = (php_dbus_dict_obj*) zend_object_store_get_object(return_value TSRMLS_CC);
+							dictobj->type = php_dbus_fetch_child_type(val);
+							MAKE_STD_ZVAL(dictobj->elements);
+							array_init(dictobj->elements);
+							init = 1;
+						}
+
+						if (Z_TYPE_P(new_key) == IS_STRING) {
+							add_assoc_zval_ex(dictobj->elements, Z_STRVAL_P(new_key), Z_STRLEN_P(new_key) + 1, val);
+						}
+					} else {
+						if (!init) {
+							array_init(return_value);
+							init = 1;
+						}
+
+						add_next_index_zval(return_value, val);
+					}
+				} while (dbus_message_iter_next(&subiter));
+			}
+			break;
+		case DBUS_TYPE_DICT_ENTRY:
+			{
+				zval *new_key = NULL;
+
+				dbus_message_iter_recurse(args, &subiter);
+					
+				*key = php_dbus_to_zval(&subiter, &new_key TSRMLS_CC);
+				dbus_message_iter_next(&subiter);
+				return_value = php_dbus_to_zval(&subiter, &new_key TSRMLS_CC);
+			}
 			break;
 		case DBUS_TYPE_VARIANT:
-			dbus_message_iter_recurse(args, &subiter);
-			dbus_instantiate(dbus_ce_dbus_variant, return_value TSRMLS_CC);
 			{
-				zval *val = php_dbus_to_zval(&subiter TSRMLS_CC);
-				dbus_variant_initialize(zend_object_store_get_object(return_value TSRMLS_CC), val TSRMLS_CC);
+				zval *new_key = NULL, *val;
+				php_dbus_variant_obj *variantobj;
+
+				dbus_message_iter_recurse(args, &subiter);
+				val = php_dbus_to_zval(&subiter, &new_key TSRMLS_CC);
+
+				dbus_instantiate(dbus_ce_dbus_variant, return_value TSRMLS_CC);
+				variantobj = (php_dbus_variant_obj*) zend_object_store_get_object(return_value TSRMLS_CC);
+				variantobj->data = val;
 			}
 			break;
 		default:
@@ -1440,7 +1520,8 @@ static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC)
 
 	array_init(return_value);
 	do {
-		val = php_dbus_to_zval(&args TSRMLS_CC);
+		zval *key = NULL;
+		val = php_dbus_to_zval(&args, &key TSRMLS_CC);
 		add_next_index_zval(return_value, val);
 	} while (dbus_message_iter_next(&args));
 

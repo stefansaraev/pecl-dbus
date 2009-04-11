@@ -8,6 +8,12 @@ class testClass {
 		$r = new DbusSet( $a, $b, $c, $d );
 		return $r;
 	}
+
+	static function dictMethod( $a )
+	{
+		var_dump( $a );
+		return new DbusSet( $a );
+	}
 }
 
 $d->registerObject( '/nl/derickrethans/test', 'nl.derickrethans.test', 'testClass' );
