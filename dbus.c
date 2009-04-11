@@ -1472,6 +1472,8 @@ static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 				variantobj->data = val;
 			}
 			break;
+		case 0:
+			break;
 		default:
 			if (dbus_message_iter_get_arg_type(args) == DBUS_TYPE_DOUBLE) {
 				double stat;
