@@ -12,6 +12,7 @@ class testClass {
 	static function dictMethod( $a )
 	{
 		var_dump( $a );
+		var_dump( $a->getData() );
 		return new DbusSet( $a );
 	}
 }

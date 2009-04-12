@@ -69,11 +69,13 @@ const zend_function_entry dbus_funcs_dbus_signal[] = {
 
 const zend_function_entry dbus_funcs_dbus_array[] = {
 	PHP_ME(DbusArray, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(DbusArray, getData,     NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 
 const zend_function_entry dbus_funcs_dbus_dict[] = {
 	PHP_ME(DbusDict, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(DbusDict, getData,     NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 
@@ -95,11 +97,13 @@ PHP_DBUS_INT_WRAPPER_DEF(double, Double);
 
 const zend_function_entry dbus_funcs_dbus_variant[] = {
 	PHP_ME(DbusVariant, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(DbusVariant, getData,     NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 
 const zend_function_entry dbus_funcs_dbus_set[] = {
 	PHP_ME(DbusSet, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(DbusSet, getData,     NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 
@@ -1772,6 +1776,20 @@ PHP_METHOD(DbusArray, __construct)
 }
 /* }}} */
 
+PHP_METHOD(DbusArray, getData)
+{
+	zval *object;
+	php_dbus_array_obj *array_obj;
+
+	if (FAILURE == zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(),
+		"O", &object, dbus_ce_dbus_array)) {
+		RETURN_FALSE;
+	}
+	array_obj = (php_dbus_array_obj *) zend_object_store_get_object(object TSRMLS_CC);
+	*return_value = *array_obj->elements;
+	zval_copy_ctor(return_value);
+}
+
 static int dbus_dict_initialize(php_dbus_dict_obj *dbusobj, long type, zval *elements TSRMLS_DC)
 {
 	dbusobj->type = type;
@@ -1797,6 +1815,20 @@ PHP_METHOD(DbusDict, __construct)
 }
 /* }}} */
 
+PHP_METHOD(DbusDict, getData)
+{
+	zval *object;
+	php_dbus_dict_obj *dict_obj;
+
+	if (FAILURE == zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(),
+		"O", &object, dbus_ce_dbus_dict)) {
+		RETURN_FALSE;
+	}
+	dict_obj = (php_dbus_dict_obj *) zend_object_store_get_object(object TSRMLS_CC);
+	*return_value = *dict_obj->elements;
+	zval_copy_ctor(return_value);
+}
+
 static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data TSRMLS_DC)
 {
 	Z_ADDREF_P(data);
@@ -1818,6 +1850,20 @@ PHP_METHOD(DbusVariant, __construct)
 	php_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 }
 /* }}} */
+
+PHP_METHOD(DbusVariant, getData)
+{
+	zval *object;
+	php_dbus_variant_obj *variant_obj;
+
+	if (FAILURE == zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(),
+		"O", &object, dbus_ce_dbus_variant)) {
+		RETURN_FALSE;
+	}
+	variant_obj = (php_dbus_variant_obj *) zend_object_store_get_object(object TSRMLS_CC);
+	*return_value = *variant_obj->data;
+	zval_copy_ctor(return_value);
+}
 
 static int dbus_set_initialize(php_dbus_set_obj *dbusobj, zval ***data, int elements TSRMLS_DC)
 {
@@ -1848,6 +1894,20 @@ PHP_METHOD(DbusSet, __construct)
 	php_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 }
 /* }}} */
+
+PHP_METHOD(DbusSet, getData)
+{
+	zval *object;
+	php_dbus_set_obj *set_obj;
+
+	if (FAILURE == zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(),
+		"O", &object, dbus_ce_dbus_set)) {
+		RETURN_FALSE;
+	}
+	set_obj = (php_dbus_set_obj *) zend_object_store_get_object(object TSRMLS_CC);
+	*return_value = *set_obj->data[0];
+	zval_copy_ctor(return_value);
+}
 
 #define PHP_DBUS_INT_WRAPPER(t,s,n) \
 	static int dbus_##s##_initialize(php_dbus_##s##_obj *dbusobj, t data TSRMLS_DC) \
