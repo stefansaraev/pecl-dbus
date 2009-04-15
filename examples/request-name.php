@@ -9,10 +9,9 @@ class testClass {
 		return $r;
 	}
 
-	static function dictMethod( $a )
+	static function dictMethod( $a = null )
 	{
 		var_dump( $a );
-		var_dump( $a->getData() );
 		return new DbusSet( $a );
 	}
 }

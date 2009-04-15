@@ -114,6 +114,7 @@ static void dbus_register_classes(TSRMLS_D);
 static zval * dbus_instantiate(zend_class_entry *pce, zval *object TSRMLS_DC);
 static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC);
 static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inXml, int type TSRMLS_DC);
+static int php_dbus_fetch_child_type(zval *child TSRMLS_DC);
 /* }}} */
 
 ZEND_DECLARE_MODULE_GLOBALS(dbus)
@@ -259,6 +260,11 @@ static zend_object_value dbus_object_new_dbus_array(zend_class_entry *class_type
 static zend_object_value dbus_object_new_dbus_dict(zend_class_entry *class_type TSRMLS_DC);
 static zend_object_value dbus_object_new_dbus_variant(zend_class_entry *class_type TSRMLS_DC);
 static zend_object_value dbus_object_new_dbus_set(zend_class_entry *class_type TSRMLS_DC);
+
+static HashTable *dbus_array_get_properties(zval *object TSRMLS_DC);
+static HashTable *dbus_dict_get_properties(zval *object TSRMLS_DC);
+static HashTable *dbus_variant_get_properties(zval *object TSRMLS_DC);
+static HashTable *dbus_set_get_properties(zval *object TSRMLS_DC);
 
 static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data TSRMLS_DC);
 
@@ -413,21 +419,25 @@ static void dbus_register_classes(TSRMLS_D)
 	ce_dbus_array.create_object = dbus_object_new_dbus_array;
 	dbus_ce_dbus_array = zend_register_internal_class_ex(&ce_dbus_array, NULL, NULL TSRMLS_CC);
 	memcpy(&dbus_object_handlers_dbus_array, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	dbus_object_handlers_dbus_array.get_properties = dbus_array_get_properties;
 
 	INIT_CLASS_ENTRY(ce_dbus_dict, "DbusDict", dbus_funcs_dbus_dict);
 	ce_dbus_dict.create_object = dbus_object_new_dbus_dict;
 	dbus_ce_dbus_dict = zend_register_internal_class_ex(&ce_dbus_dict, NULL, NULL TSRMLS_CC);
 	memcpy(&dbus_object_handlers_dbus_dict, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	dbus_object_handlers_dbus_dict.get_properties = dbus_dict_get_properties;
 
 	INIT_CLASS_ENTRY(ce_dbus_variant, "DbusVariant", dbus_funcs_dbus_variant);
 	ce_dbus_variant.create_object = dbus_object_new_dbus_variant;
 	dbus_ce_dbus_variant = zend_register_internal_class_ex(&ce_dbus_variant, NULL, NULL TSRMLS_CC);
 	memcpy(&dbus_object_handlers_dbus_variant, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	dbus_object_handlers_dbus_variant.get_properties = dbus_variant_get_properties;
 
 	INIT_CLASS_ENTRY(ce_dbus_set, "DbusSet", dbus_funcs_dbus_set);
 	ce_dbus_set.create_object = dbus_object_new_dbus_set;
 	dbus_ce_dbus_set = zend_register_internal_class_ex(&ce_dbus_set, NULL, NULL TSRMLS_CC);
 	memcpy(&dbus_object_handlers_dbus_set, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	dbus_object_handlers_dbus_set.get_properties = dbus_set_get_properties;
 
 	PHP_DBUS_REGISTER_TYPE_CLASS(byte, "DbusByte");
 	PHP_DBUS_REGISTER_TYPE_CLASS(bool, "DbusBool");
@@ -1124,15 +1134,56 @@ PHP_METHOD(Dbus, registerObject)
 
 static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMessageIter *iter, char *type_hint TSRMLS_DC);
 
+static int dbus_append_var_php_array(php_dbus_data_array *data_array, DBusMessageIter *iter, zval *array TSRMLS_DC)
+{
+	DBusMessageIter listiter;
+	char type_string[2];
+	int type = DBUS_TYPE_STRING;
+	zval **entry;
+
+	/* First we find the first element, to find the type that we need to set.
+	 * We'll only consider elements of the type that the first element of the
+	 * array has */
+	zend_hash_internal_pointer_reset(Z_ARRVAL_P(array));
+	if (zend_hash_get_current_data(Z_ARRVAL_P(array), (void **)&entry) == SUCCESS) {
+		type = php_dbus_fetch_child_type(*entry TSRMLS_CC);
+	}
+
+	type_string[0] = (char) type;
+	type_string[1] = '\0';
+
+	dbus_message_iter_open_container(iter, DBUS_TYPE_ARRAY, type_string, &listiter);
+
+	zend_hash_internal_pointer_reset(Z_ARRVAL_P(array));
+	while (zend_hash_get_current_data(Z_ARRVAL_P(array), (void **)&entry) == SUCCESS) {
+		if (php_dbus_fetch_child_type(*entry TSRMLS_CC) == type) {
+			dbus_append_var(entry, data_array, &listiter, NULL TSRMLS_CC);
+		}
+		zend_hash_move_forward(Z_ARRVAL_P(array));
+	}
+	dbus_message_iter_close_container(iter, &listiter);
+
+	return 1;
+}
+
 static int dbus_append_var_array(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_array_obj *obj)
 {
 	DBusMessageIter listiter;
-    char type_string[2];
+	char type_string[2];
+	zval **entry;
 
 	type_string[0] = (char) obj->type;
 	type_string[1] = '\0';
 
 	dbus_message_iter_open_container(iter, DBUS_TYPE_ARRAY, type_string, &listiter);
+
+	zend_hash_internal_pointer_reset(Z_ARRVAL_P(obj->elements));
+	while (zend_hash_get_current_data(Z_ARRVAL_P(obj->elements), (void **)&entry) == SUCCESS) {
+		if (php_dbus_fetch_child_type(*entry TSRMLS_CC) == obj->type) {
+			dbus_append_var(entry, data_array, &listiter, NULL TSRMLS_CC);
+		}
+		zend_hash_move_forward(Z_ARRVAL_P(obj->elements));
+	}
 	dbus_message_iter_close_container(iter, &listiter);
 
 	return 1;
@@ -1141,7 +1192,7 @@ static int dbus_append_var_array(php_dbus_data_array *data_array, DBusMessageIte
 static int dbus_append_var_dict(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_dict_obj *obj TSRMLS_DC)
 {
 	DBusMessageIter listiter, dictiter;
-    char type_string[5];
+	char type_string[5];
 	zval **entry;
 	char *key;
 	uint key_len;
@@ -1341,6 +1392,9 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 		case IS_STRING:
 			dbus_message_iter_append_basic(iter, DBUS_TYPE_STRING, &Z_STRVAL_PP(val));
 			break;
+		case IS_ARRAY:
+			dbus_append_var_php_array(data_array, iter, *val TSRMLS_CC);
+			break;
 		case IS_OBJECT:
 			/* We need to check for DbusArray, DbusDict, DbusVariant, DbusSet and the DBus types */
 			obj = (zend_object *) zend_object_store_get_object(*val TSRMLS_CC);
@@ -1520,11 +1574,11 @@ static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC)
 		php_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 	}
 
+	array_init(return_value);
 	if (!dbus_message_iter_init(msg, &args)) {
 		return 0;
 	}
 
-	array_init(return_value);
 	do {
 		zval *key = NULL;
 		val = php_dbus_to_zval(&args, &key TSRMLS_CC);
@@ -1760,6 +1814,22 @@ static int dbus_array_initialize(php_dbus_array_obj *dbusobj, long type, zval *e
 	return 1;
 }
 
+static HashTable *dbus_array_get_properties(zval *object TSRMLS_DC)
+{
+	HashTable *props;
+	zval *zv;
+	php_dbus_array_obj *array_obj;
+
+	array_obj = (php_dbus_array_obj *) zend_object_store_get_object(object TSRMLS_CC);
+
+	props = array_obj->std.properties;
+
+	zend_hash_update(props, "array", 6, (void*)&array_obj->elements, sizeof(zval *), NULL);
+	Z_ADDREF_P(array_obj->elements);
+
+	return props;
+}
+
 /* {{{ proto DbusArray::__construct(int $type, array $elements)
    Creates new DbusArray object
 */
@@ -1799,6 +1869,22 @@ static int dbus_dict_initialize(php_dbus_dict_obj *dbusobj, long type, zval *ele
 	return 1;
 }
 
+static HashTable *dbus_dict_get_properties(zval *object TSRMLS_DC)
+{
+	HashTable *props;
+	zval *zv;
+	php_dbus_dict_obj *dict_obj;
+
+	dict_obj = (php_dbus_dict_obj *) zend_object_store_get_object(object TSRMLS_CC);
+
+	props = dict_obj->std.properties;
+
+	zend_hash_update(props, "dict", 5, (void*)&dict_obj->elements, sizeof(zval *), NULL);
+	Z_ADDREF_P(dict_obj->elements);
+
+	return props;
+}
+
 /* {{{ proto DbusDict::__construct(int $type, dict $elements)
    Creates new DbusDict object
 */
@@ -1834,6 +1920,22 @@ static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data TSR
 	Z_ADDREF_P(data);
 	dbusobj->data = data;
 	return 1;
+}
+
+static HashTable *dbus_variant_get_properties(zval *object TSRMLS_DC)
+{
+	HashTable *props;
+	zval *zv;
+	php_dbus_variant_obj *variant_obj;
+
+	variant_obj = (php_dbus_variant_obj *) zend_object_store_get_object(object TSRMLS_CC);
+
+	props = variant_obj->std.properties;
+
+	zend_hash_update(props, "variant", 8, (void*)&variant_obj->data, sizeof(zval *), NULL);
+	Z_ADDREF_P(variant_obj->data);
+
+	return props;
 }
 
 /* {{{ proto DbusVariant::__construct(mixed $data)
@@ -1877,6 +1979,22 @@ static int dbus_set_initialize(php_dbus_set_obj *dbusobj, zval ***data, int elem
 	}
 	return 1;
 }
+
+static HashTable *dbus_set_get_properties(zval *object TSRMLS_DC)
+{
+	HashTable *props;
+	zval *zv;
+	php_dbus_set_obj *set_obj;
+
+	set_obj = (php_dbus_set_obj *) zend_object_store_get_object(object TSRMLS_CC);
+
+	props = set_obj->std.properties;
+
+	zend_hash_update(props, "set", 4, set_obj->data[0], sizeof(zval), NULL);
+
+	return props;
+}
+
 
 /* {{{ proto DbusSet::__construct(mixed $data)
    Creates new DbusSet object
