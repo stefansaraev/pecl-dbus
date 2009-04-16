@@ -1,3 +1,24 @@
+/*
+   +----------------------------------------------------------------------+
+   | PHP Version 5                                                        |
+   +----------------------------------------------------------------------+
+   | Copyright (c) 1997-2008 The PHP Group                                |
+   +----------------------------------------------------------------------+
+   | This source file is subject to version 3.01 of the PHP license,      |
+   | that is bundled with this package in the file LICENSE, and is        |
+   | available through the world-wide-web at the following url:           |
+   | http://www.php.net/license/3_01.txt                                  |
+   | If you did not receive a copy of the PHP license and are unable to   |
+   | obtain it through the world-wide-web, please send a note to          |
+   | license@php.net so we can mail you a copy immediately.               |
+   +----------------------------------------------------------------------+
+   | Authors: Derick Rethans <derick@derickrethans.nl>                    |
+   +----------------------------------------------------------------------+
+ */
+
+/* $Id$ */
+
+#include <string.h>
 #include "libxml/parser.h"
 #include "libxml/parserInternals.h"
 
@@ -7,7 +28,7 @@ static xmlNode *php_dbus_find_element(xmlNode *element, char *name)
 		return NULL;
 	}
 	do {
-		if (element->type == XML_ELEMENT_NODE && strcmp(element->name, name) == 0) {
+		if (element->type == XML_ELEMENT_NODE && strcmp((char*) element->name, name) == 0) {
 			return element;
 		}
 	} while((element = element->next));
@@ -20,13 +41,13 @@ static xmlNode *php_dbus_find_element_by_attribute(xmlNode *element, char *name,
 		return NULL;
 	}
 	do {
-		if (element->type == XML_ELEMENT_NODE && strcmp(element->name, name) == 0) {
+		if (element->type == XML_ELEMENT_NODE && strcmp((char*) element->name, name) == 0) {
 			xmlAttr *attrs = element->properties;
 
 			do {
-				if (attrs->type == XML_ATTRIBUTE_NODE && strcmp(attrs->name, attr) == 0 
+				if (attrs->type == XML_ATTRIBUTE_NODE && strcmp((char*) attrs->name, attr) == 0 
 					&& attrs->children->type == XML_TEXT_NODE 
-					&& strcmp(attrs->children->content, attr_value) == 0) 
+					&& strcmp((char*) attrs->children->content, attr_value) == 0) 
 				{
 					return element;
 				}
@@ -71,16 +92,16 @@ xmlNode *php_dbus_find_method_node(xmlNode *root, char *method)
 xmlNode **php_dbus_get_next_sig(xmlNode **it, char **sig)
 {
 	do {
-		if ((*it)->type == XML_ELEMENT_NODE && strcmp((*it)->name, "arg") == 0) {
+		if ((*it)->type == XML_ELEMENT_NODE && strcmp((char*) (*it)->name, "arg") == 0) {
 			xmlAttr *attrs = (*it)->properties;
 			int dirIn = 0, sigFound = 0;
 
 			do {
-				if (attrs->type == XML_ATTRIBUTE_NODE && strcmp(attrs->name, "type") == 0) {
-					*sig = attrs->children->content;
+				if (attrs->type == XML_ATTRIBUTE_NODE && strcmp((char*) attrs->name, "type") == 0) {
+					*sig = (char*) attrs->children->content;
 					sigFound = 1;
 				}
-				if (attrs->type == XML_ATTRIBUTE_NODE && strcmp(attrs->name, "direction") == 0 && strcmp(attrs->children->content, "in") == 0) {
+				if (attrs->type == XML_ATTRIBUTE_NODE && strcmp((char*) attrs->name, "direction") == 0 && strcmp((char*) attrs->children->content, "in") == 0) {
 					dirIn = 1;
 				}
 			} while((attrs = attrs->next));
