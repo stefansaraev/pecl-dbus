@@ -7,10 +7,42 @@ var_dump( $n->dictMethod( new DBusDict( DBus::STRING, array( "x" => "foo" , "y" 
 var_dump( $n->dictMethod( array( "one" => DBus::STRING, "two" => array( "x" => "foo" , "y" => "bar", "z" => "5123" ) ) ) );
 var_dump( $n->dictMethod( new DBusArray( DBus::STRING, array( "foo", "bar" ))));
 var_dump( $n->dictMethod( array( new DBusInt64( 51 ), 92, "foo", "bar", new DBusInt64( 42 ), "fsadf" ) ) );
-*/
 $a = new DBusByte( 54.5 );
 $b = new DBusInt64( 54.5 );
 $c = new DBusUInt16( 54.5 );
 $d = new DBusDouble( 54.5 );
 var_dump( $n->dictMethod( $a, $b, $c, $d ) );
+$d = new DBusStruct( "sss", 
+	array( 
+		array ( "one", "two", "three" ), 
+		array ( new DBusVariant( 42 ), new DBusVariant( false ) ) 
+	) 
+);
+var_dump( $d );
+var_dump( $n->dictMethod( $d ) );
+*/
+
+/*
+$d = new DBusArray(
+	DBus::STRUCT,
+	array( 
+		new DBusStruct( "", array ( "one", "two", "three", 45, new DBusVariant( 3.14 ) ) ), 
+		new DBusStruct( "", array ( "een", "twee", "drie", 42, new DBusVariant( false ) ) ) 
+	),
+	"(sssiv)"
+);
+var_dump( $d );
+var_dump( $n->dictMethod( $d ) );
+*/
+
+$d = new DBusArray(
+	DBus::STRUCT,
+	array( 
+		new DBusDict( DBus::STRING, array ( "one" => "two", "three" => new DBusVariant( 3.14 ) ) ), 
+//		new DBusDict( DBus::INT32, array ( "een" => "twee", "drie" => 42 ) ) 
+	),
+	"{ss}"
+);
+var_dump( $d );
+var_dump( $n->dictMethod( $d ) );
 ?>
