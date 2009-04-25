@@ -2,29 +2,25 @@
 $d = new Dbus( Dbus::BUS_SESSION, true );
 $d->requestName( 'nl.derickrethans.test' );
 
-class testClass {
-	static function myFirstMethod($a, $b, $c, $d) {
-		var_dump("yay", $a, $b, $c, $d );
-		$r = new DbusSet( $a, $b, $c, $d );
-		return $r;
+class testClass
+{
+	static function echoOne( $a )
+	{
+		return $a;
 	}
 
-	static function dictMethod( $a = null, $b = null )
+	static function echoTwo( $a, $b )
 	{
-		var_dump( $a );
-		var_dump( $b );
 		return new DbusSet( $a, $b );
 	}
 }
 
 $d->registerObject( '/nl/derickrethans/test', 'nl.derickrethans.test', 'testClass' );
-$d->registerObject( '/nl/derickrethans/test', 'nl.derickrethans.test3', 'doesNotExist' );
 
-//$n = new DbusObject( $d, "org.gnome.ScreenSaver", "/org/gnome/ScreenSaver", "org.gnome.ScreenSaver");
-//var_dump($n->GetActive());
 do
 {
 	$s = $d->waitLoop( 1000 );
+	echo ".";
 }
 while (true );
 ?>

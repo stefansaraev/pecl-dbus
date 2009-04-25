@@ -22,7 +22,6 @@ var_dump( $d );
 var_dump( $n->dictMethod( $d ) );
 */
 
-/*
 $d = new DBusArray(
 	DBus::STRUCT,
 	array( 
@@ -32,17 +31,20 @@ $d = new DBusArray(
 	"(sssiv)"
 );
 var_dump( $d );
-var_dump( $n->dictMethod( $d ) );
-*/
+echo "reply\n";
+var_dump( $n->echoOne( $d ) );
+var_dump( $n->echoTwo( $d, "test" ) );
 
+/*
 $d = new DBusArray(
 	DBus::STRUCT,
 	array( 
-		new DBusDict( DBus::STRING, array ( "one" => "two", "three" => new DBusVariant( 3.14 ) ) ), 
-//		new DBusDict( DBus::INT32, array ( "een" => "twee", "drie" => 42 ) ) 
+//		new DBusDict( DBus::STRING, array ( "one" => "two", "three" => new DBusVariant( 3.14 ) ) ), 
+		new DBusDict( DBus::STRING, array ( "een" => "twee", "drie" => "foo" ) ) 
 	),
 	"{ss}"
 );
 var_dump( $d );
 var_dump( $n->dictMethod( $d ) );
+*/
 ?>
