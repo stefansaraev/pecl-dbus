@@ -1,3 +1,6 @@
 - Property support.
-- Support for sending signals.
-- Support for receiving method calls.
+- Change object creation to factory method.
+- Change method returns to not return an array(), but either a DbusSet or a
+  normal data type.
+- Added introspection for other things than u and i.
+- Test 64/32 bit issues.
