@@ -1624,21 +1624,23 @@ static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 							init = 1;
 						}
 
-						if (Z_TYPE_P(new_key) == IS_STRING) {
+						if (val && Z_TYPE_P(new_key) == IS_STRING) {
 							add_assoc_zval_ex(dictobj->elements, Z_STRVAL_P(new_key), Z_STRLEN_P(new_key) + 1, val);
 						}
 					} else {
 						if (!init) {
 							dbus_instantiate(dbus_ce_dbus_array, return_value TSRMLS_CC);
 							arrayobj = (php_dbus_array_obj*) zend_object_store_get_object(return_value TSRMLS_CC);
-							arrayobj->type = php_dbus_fetch_child_type(val);
+							arrayobj->type = val ? php_dbus_fetch_child_type(val) : DBUS_TYPE_INVALID;
 							MAKE_STD_ZVAL(arrayobj->elements);
 							array_init(arrayobj->elements);
 							arrayobj->signature = estrdup(dbus_message_iter_get_signature(&subiter));
 							init = 1;
 						}
 
-						add_next_index_zval(arrayobj->elements, val);
+						if (val) {
+							add_next_index_zval(arrayobj->elements, val);
+						}
 					}
 				} while (dbus_message_iter_next(&subiter));
 			}
@@ -1685,6 +1687,7 @@ static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 			}
 			break;
 		case 0:
+			return NULL;
 			break;
 		default:
 			if (dbus_message_iter_get_arg_type(args) == DBUS_TYPE_DOUBLE) {
