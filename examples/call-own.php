@@ -21,7 +21,7 @@ $d = new DBusStruct( "sss",
 var_dump( $d );
 var_dump( $n->dictMethod( $d ) );
 */
-
+/*
 $d = new DBusArray(
 	DBus::STRUCT,
 	array( 
@@ -34,7 +34,8 @@ var_dump( $d );
 echo "reply\n";
 var_dump( $n->echoOne( $d ) );
 var_dump( $n->echoTwo( $d, "test" ) );
-
+die();
+*/
 /*
 $d = new DBusArray(
 	DBus::STRUCT,
@@ -47,4 +48,31 @@ $d = new DBusArray(
 var_dump( $d );
 var_dump( $n->dictMethod( $d ) );
 */
+
+$d = new DBusArray(
+	DBus::STRUCT,
+	array(
+		new DBusStruct(
+			"",
+			array( 
+				42, "foo", 
+				new DBusDict( DBus::VARIANT,
+					array( new DBusVariant( "oine" ), new DBusVariant( false ) )
+				),
+			)
+		),
+		new DBusStruct(
+			"",
+			array( 
+				43, "foo", 
+				new DBusDict( DBus::VARIANT,
+					array( new DBusVariant( 40 ), new DBusVariant( 53 ) )
+				),
+			)
+		),
+	),
+	"(isa{sv})"
+);
+var_dump( $d );
+var_dump( $n->echoOne( $d ) );
 ?>
