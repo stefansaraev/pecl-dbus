@@ -1,6 +1,6 @@
 <?php
 $d = new Dbus( Dbus::BUS_SESSION, true );
-$n = new DbusObject( $d, "nl.derickrethans.test", "/nl/derickrethans/test", "nl.derickrethans.test");
+$n = $d->createProxy( "nl.derickrethans.test", "/nl/derickrethans/test", "nl.derickrethans.test");
 
 $d = new DBusArray(
 	DBus::STRUCT,

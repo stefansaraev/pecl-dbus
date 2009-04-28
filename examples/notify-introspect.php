@@ -2,8 +2,7 @@
 // Specifications are at: http://galago-project.org/specs/notification/0.9/index.html
 
 $d = new Dbus( Dbus::BUS_SESSION, true );
-$n = new DbusObject( 
-	$d, // dbus connection
+$n = $d->createProxy(
 	"org.freedesktop.Notifications",  // connection name
 	"/org/freedesktop/Notifications", // object
 	"org.freedesktop.Notifications"   // interface

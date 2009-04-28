@@ -1,6 +1,6 @@
 <?php
 $d = new Dbus;
-$n = new DbusObject( $d, "im.pidgin.purple.PurpleService", "/im/pidgin/purple/PurpleObject", "im.pidgin.purple.PurpleInterface");
+$n = $d->createProxy( "im.pidgin.purple.PurpleService", "/im/pidgin/purple/PurpleObject", "im.pidgin.purple.PurpleInterface");
 $data = $n->PurpleAccountsGetAllActive();
 foreach( $data[0]->getData() as $account )
 {

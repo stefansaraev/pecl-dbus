@@ -35,6 +35,8 @@ PHP_METHOD(Dbus, addWatch);
 PHP_METHOD(Dbus, waitLoop);
 PHP_METHOD(Dbus, requestName);
 PHP_METHOD(Dbus, registerObject);
+PHP_METHOD(Dbus, createProxy);
+
 PHP_METHOD(DbusObject, __construct);
 PHP_METHOD(DbusObject, __call);
 PHP_METHOD(DbusSignal, __construct);

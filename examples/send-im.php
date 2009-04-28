@@ -1,6 +1,6 @@
 <?php
 $d = new Dbus;
-$n = new DbusObject( $d, "im.pidgin.purple.PurpleService", "/im/pidgin/purple/PurpleObject", "im.pidgin.purple.PurpleInterface");
+$n = $d->createProxy( "im.pidgin.purple.PurpleService", "/im/pidgin/purple/PurpleObject", "im.pidgin.purple.PurpleInterface");
 $buddies = $n->PurpleFindBuddies( new DBusInt32( 6849 ), "" );
 //$buddies = $n->PurpleFindBuddies( 6849, "" );
 foreach( $buddies[0] as $item )

@@ -1,6 +1,6 @@
 - Property support.
-- Change object creation to factory method.
 - Change method returns to not return an array(), but either a DbusSet or a
   normal data type.
+- Change array/struct/dict entry signature passing.
 - Added introspection for other things than u and i.
 - Test 64/32 bit issues.

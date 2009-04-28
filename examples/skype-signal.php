@@ -1,6 +1,6 @@
 <?php
 $d = new Dbus( Dbus::BUS_SESSION, true );
-$n = new DbusObject( $d, "com.Skype.API", "/com/Skype", "com.Skype.API");
+$n = $d->createProxy( "com.Skype.API", "/com/Skype", "com.Skype.API");
 var_dump( $n->Invoke( "NAME PHP" ) );
 var_dump( $n->Invoke( "PROTOCOL 7" ) );
 $chatId = $n->Invoke( "CHAT CREATE derickrethans" );

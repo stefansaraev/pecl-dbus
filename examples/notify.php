@@ -3,8 +3,7 @@
 
 $d = new Dbus( Dbus::BUS_SESSION );
 
-$n = new DbusObject( 
-	$d, // dbus connection
+$n = $d->createProxy(
 	"org.freedesktop.Notifications",  // connection name
 	"/org/freedesktop/Notifications", // object
 	"org.freedesktop.Notifications"   // interface

@@ -50,11 +50,12 @@ const zend_function_entry dbus_funcs_dbus[] = {
 	PHP_ME(Dbus, waitLoop,    NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(Dbus, requestName, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(Dbus, registerObject, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(Dbus, createProxy, NULL, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 
 const zend_function_entry dbus_funcs_dbus_object[] = {
-	PHP_ME(DbusObject, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(DbusObject, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PRIVATE)
 	PHP_ME(DbusObject, __call,      arginfo_dbus_object___call, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
@@ -1024,6 +1025,35 @@ PHP_METHOD(DbusObject, __construct)
 		dbus_object_initialize(zend_object_store_get_object(getThis() TSRMLS_CC), dbus, destination, path, interface TSRMLS_CC);
 		if (dbus->useIntrospection) {
 			php_dbus_introspect(zend_object_store_get_object(getThis() TSRMLS_CC), dbus, destination, path, interface TSRMLS_CC);
+		}
+	}
+	dbus_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
+}
+/* }}} */
+
+/* {{{ proto Dbus::createProxy(string destination, string path, string interface)
+   Creates new DbusObject object
+*/
+PHP_METHOD(Dbus, createProxy)
+{
+	zval *object = getThis();
+	php_dbus_obj *dbus;
+	php_dbus_object_obj *dbus_object;
+	char *destination, *path, *interface;
+	int   destination_len, path_len, interface_len;
+
+	dbus_set_error_handling(EH_THROW, NULL TSRMLS_CC);
+	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss",
+		&destination, &destination_len, &path, &path_len, 
+		&interface, &interface_len))
+	{
+		dbus = (php_dbus_obj *) zend_object_store_get_object(object TSRMLS_CC);
+		Z_ADDREF_P(object);
+		dbus_instantiate(dbus_ce_dbus_object, return_value TSRMLS_CC);
+		dbus_object = (php_dbus_object_obj *) zend_object_store_get_object(return_value TSRMLS_CC);
+		dbus_object_initialize(dbus_object, dbus, destination, path, interface TSRMLS_CC);
+		if (dbus->useIntrospection) {
+			php_dbus_introspect(dbus_object, dbus, destination, path, interface TSRMLS_CC);
 		}
 	}
 	dbus_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
