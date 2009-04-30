@@ -1099,14 +1099,19 @@ static void php_dbus_do_method_call(php_dbus_obj *dbus, DBusMessage *msg, char *
 	add_next_index_string(callback, member, 0);
 
 	params_ar = HASH_OF(params);
-	num_elems = zend_hash_num_elements(params_ar);
-	method_args = (zval ***) safe_emalloc(sizeof(zval **), num_elems, 0);
+	if (params_ar) {
+		num_elems = zend_hash_num_elements(params_ar);
+		method_args = (zval ***) safe_emalloc(sizeof(zval **), num_elems, 0);
 
-	for (zend_hash_internal_pointer_reset(params_ar);
-		zend_hash_get_current_data(params_ar, (void **) &(method_args[element])) == SUCCESS;
-		zend_hash_move_forward(params_ar)
-	) {
-		element++;
+		for (zend_hash_internal_pointer_reset(params_ar);
+			zend_hash_get_current_data(params_ar, (void **) &(method_args[element])) == SUCCESS;
+			zend_hash_move_forward(params_ar)
+		) {
+			element++;
+		}
+	} else {
+		num_elems = 0;
+		method_args = (zval ***) safe_emalloc(sizeof(zval **), num_elems, 0);
 	}
 
 	if (call_user_function_ex(EG(function_table), &object, callback, &retval_ptr, num_elems, method_args, 0, NULL TSRMLS_CC) == SUCCESS) {

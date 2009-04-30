@@ -4,6 +4,10 @@ $d->requestName( 'nl.derickrethans.test' );
 
 class testClass
 {
+	static function echoZero()
+	{
+	}
+
 	static function echoOne( $a )
 	{
 		return $a;
