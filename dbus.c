@@ -119,7 +119,7 @@ const zend_function_entry dbus_funcs_dbus_struct[] = {
 
 static void dbus_register_classes(TSRMLS_D);
 static zval * dbus_instantiate(zend_class_entry *pce, zval *object TSRMLS_DC);
-static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC);
+static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg, int always_array TSRMLS_DC);
 static int php_dbus_append_parameters(DBusMessage *msg, zval *data, xmlNode *inXml, int type TSRMLS_DC);
 static int php_dbus_fetch_child_type(zval *child TSRMLS_DC);
 /* }}} */
@@ -211,8 +211,8 @@ struct _php_dbus_variant_obj {
 
 struct _php_dbus_set_obj {
 	zend_object      std;
-	zval           **data;
-	int              data_elements;
+	int              element_count;
+	zval           **elements;
 };
 
 struct _php_dbus_struct_obj {
@@ -1091,7 +1091,7 @@ static void php_dbus_do_method_call(php_dbus_obj *dbus, DBusMessage *msg, char *
 	DBusMessage *reply;
 
 	ALLOC_ZVAL(params);
-	php_dbus_handle_reply(params, msg TSRMLS_CC);
+	php_dbus_handle_reply(params, msg, 1 TSRMLS_CC);
 
 	ALLOC_ZVAL(callback);
 	array_init(callback);
@@ -1457,8 +1457,8 @@ static int dbus_append_var_set(php_dbus_data_array *data_array, DBusMessageIter 
 {
 	int   i;
 
-	for (i = 0; i < obj->data_elements; i++) {
-		dbus_append_var(&(obj->data[i]), data_array, iter, NULL TSRMLS_CC);
+	for (i = 0; i < obj->element_count; i++) {
+		dbus_append_var(&(obj->elements[i]), data_array, iter, NULL TSRMLS_CC);
 	}
 
 	return 1;
@@ -1750,7 +1750,7 @@ static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 	return return_value;
 }
 
-static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC)
+static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg, int always_array TSRMLS_DC)
 {
 	DBusMessageIter args;
 	dbus_int64_t    stat;
@@ -1767,16 +1767,44 @@ static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg TSRMLS_DC)
 		dbus_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 	}
 
-	array_init(return_value);
+	ZVAL_NULL(return_value);
+	// No return values
 	if (!dbus_message_iter_init(msg, &args)) {
 		return 0;
 	}
 
-	do {
-		zval *key = NULL;
-		val = php_dbus_to_zval(&args, &key TSRMLS_CC);
-		add_next_index_zval(return_value, val);
-	} while (dbus_message_iter_next(&args));
+	// if we're setting up a method call to be called by PHP, we just need a normal array
+	if (always_array) {
+		array_init(return_value);
+		do {
+			zval *key = NULL;
+			val = php_dbus_to_zval(&args, &key TSRMLS_CC);
+			add_next_index_zval(return_value, val);
+		} while (dbus_message_iter_next(&args));
+	} else {
+		if (dbus_message_iter_has_next(&args)) {
+			// More than one return value
+			php_dbus_set_obj *set;
+
+			dbus_instantiate(dbus_ce_dbus_set, return_value TSRMLS_CC);
+			set = (php_dbus_set_obj *) zend_object_store_get_object(return_value TSRMLS_CC);
+			set->element_count = 0;
+			set->elements = (zval **) safe_emalloc(sizeof(zval*), 64, 0);
+
+			do {
+				zval *key = NULL;
+				val = php_dbus_to_zval(&args, &key TSRMLS_CC);
+
+				set->elements[set->element_count] = val;
+				set->element_count++;
+			} while (dbus_message_iter_next(&args));
+		} else {
+			// Exactly one return value
+			zval *key = NULL;
+			val = php_dbus_to_zval(&args, &key TSRMLS_CC);
+			*return_value = *val;
+		}
+	}
 
 	return 1;
 }
@@ -1829,7 +1857,7 @@ PHP_METHOD(DbusObject, __call)
 		dbus_pending_call_unref(pending);
 		RETURN_NULL();
 	} else {
-		php_dbus_handle_reply(return_value, msg TSRMLS_CC);
+		php_dbus_handle_reply(return_value, msg, 0 TSRMLS_CC);
 		dbus_message_unref(msg);   
 		dbus_pending_call_unref(pending);
 	}
@@ -1944,7 +1972,7 @@ PHP_METHOD(DbusSignal, getData)
 		RETURN_FALSE;
 	}
 
-	php_dbus_handle_reply(return_value, signal_obj->msg TSRMLS_CC);
+	php_dbus_handle_reply(return_value, signal_obj->msg, 0 TSRMLS_CC);
 }
 
 PHP_METHOD(DbusSignal, send)
@@ -2172,25 +2200,34 @@ static int dbus_set_initialize(php_dbus_set_obj *dbusobj, zval ***data, int elem
 {
 	int i;
 
-	dbusobj->data = ecalloc(sizeof(zval *), elements);
-	dbusobj->data_elements = elements;
+	dbusobj->elements = ecalloc(sizeof(zval *), elements);
+	dbusobj->element_count = elements;
 
 	for (i = 0; i < elements; i++) {
-		dbusobj->data[i] = *data[i];
+		dbusobj->elements[i] = *data[i];
 	}
 	return 1;
 }
 
 static HashTable *dbus_set_get_properties(zval *object TSRMLS_DC)
 {
+	int i;
 	HashTable *props;
 	php_dbus_set_obj *set_obj;
+	zval *set_contents;
 
 	set_obj = (php_dbus_set_obj *) zend_object_store_get_object(object TSRMLS_CC);
 
 	props = set_obj->std.properties;
 
-	zend_hash_update(props, "set", 4, set_obj->data[0], sizeof(zval), NULL);
+	ALLOC_ZVAL(set_contents);
+	array_init(set_contents);
+	for (i = 0; i < set_obj->element_count; i++) {
+		Z_ADDREF_P(set_obj->elements[i]);
+		add_next_index_zval(set_contents, set_obj->elements[i]);
+	}
+
+	zend_hash_update(props, "set", 4, (void*)&set_contents, sizeof(zval*), NULL);
 
 	return props;
 }
@@ -2215,6 +2252,7 @@ PHP_METHOD(DbusSet, __construct)
 
 PHP_METHOD(DbusSet, getData)
 {
+	int i;
 	zval *object;
 	php_dbus_set_obj *set_obj;
 
@@ -2223,8 +2261,11 @@ PHP_METHOD(DbusSet, getData)
 		RETURN_FALSE;
 	}
 	set_obj = (php_dbus_set_obj *) zend_object_store_get_object(object TSRMLS_CC);
-	*return_value = *set_obj->data[0];
-	zval_copy_ctor(return_value);
+	array_init(return_value);
+	for (i = 0; i < set_obj->element_count; i++) {
+		Z_ADDREF_P(set_obj->elements[i]);
+		add_next_index_zval(return_value, set_obj->elements[i]);
+	}
 }
 
 static int dbus_struct_initialize(php_dbus_struct_obj *dbusobj, char *signature, zval *elements TSRMLS_DC)
