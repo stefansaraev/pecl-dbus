@@ -1302,7 +1302,7 @@ static int dbus_append_var_php_array(php_dbus_data_array *data_array, DBusMessag
 	return 1;
 }
 
-static int dbus_append_var_array(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_array_obj *obj)
+static int dbus_append_var_array(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_array_obj *obj TSRMLS_DC)
 {
 	DBusMessageIter listiter;
 	char *type_string;
@@ -1464,7 +1464,7 @@ static int dbus_append_var_set(php_dbus_data_array *data_array, DBusMessageIter 
 	return 1;
 }
 
-static int dbus_append_var_struct(php_dbus_data_array *data_struct, DBusMessageIter *iter, php_dbus_struct_obj *obj)
+static int dbus_append_var_struct(php_dbus_data_array *data_struct, DBusMessageIter *iter, php_dbus_struct_obj *obj TSRMLS_DC)
 {
 	DBusMessageIter listiter;
 	zval **entry;
@@ -1560,7 +1560,7 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 			/* We need to check for DbusArray, DbusDict, DbusVariant, DbusSet and the DBus types */
 			obj = (zend_object *) zend_object_store_get_object(*val TSRMLS_CC);
 			if (obj->ce == dbus_ce_dbus_array) {
-				dbus_append_var_array(data_array, iter, (php_dbus_array_obj*) obj);
+				dbus_append_var_array(data_array, iter, (php_dbus_array_obj*) obj TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_dict) {
 				dbus_append_var_dict(data_array, iter, (php_dbus_dict_obj*) obj TSRMLS_CC);
@@ -1572,7 +1572,7 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 				dbus_append_var_set(data_array, iter, (php_dbus_set_obj*) obj TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_struct) {
-				dbus_append_var_struct(data_array, iter, (php_dbus_struct_obj*) obj);
+				dbus_append_var_struct(data_array, iter, (php_dbus_struct_obj*) obj TSRMLS_CC);
 			}
 			PHP_DBUS_MARSHAL_TO_DBUS_CASE(byte);
 			PHP_DBUS_MARSHAL_TO_DBUS_CASE(bool);
@@ -1653,7 +1653,7 @@ static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 						if (!init) {
 							dbus_instantiate(dbus_ce_dbus_dict, return_value TSRMLS_CC);
 							dictobj = (php_dbus_dict_obj*) zend_object_store_get_object(return_value TSRMLS_CC);
-							dictobj->type = php_dbus_fetch_child_type(val);
+							dictobj->type = php_dbus_fetch_child_type(val TSRMLS_CC);
 							MAKE_STD_ZVAL(dictobj->elements);
 							array_init(dictobj->elements);
 							init = 1;
@@ -1666,7 +1666,7 @@ static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 						if (!init) {
 							dbus_instantiate(dbus_ce_dbus_array, return_value TSRMLS_CC);
 							arrayobj = (php_dbus_array_obj*) zend_object_store_get_object(return_value TSRMLS_CC);
-							arrayobj->type = val ? php_dbus_fetch_child_type(val) : DBUS_TYPE_INVALID;
+							arrayobj->type = val ? php_dbus_fetch_child_type(val TSRMLS_CC) : DBUS_TYPE_INVALID;
 							MAKE_STD_ZVAL(arrayobj->elements);
 							array_init(arrayobj->elements);
 							arrayobj->signature = estrdup(dbus_message_iter_get_signature(&subiter));
