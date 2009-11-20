@@ -544,7 +544,9 @@ static void dbus_object_free_storage_dbus(void *object TSRMLS_DC)
 	if (intern->con) {
 		dbus_connection_unref(intern->con);
 	}
-	zend_hash_destroy(&intern->objects);
+	if (intern->objects.arBuckets) {
+		zend_hash_destroy(&intern->objects);
+	}
 
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
@@ -782,6 +784,18 @@ static void dbus_object_free_storage_dbus_set(void *object TSRMLS_DC)
 	php_dbus_set_obj *intern = (php_dbus_set_obj *)object;
 
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
+	
+	if (intern->elements) {
+		int i;
+		
+		for (i = 0; i < intern->element_count; i++) {
+			if (intern->elements[i]) {
+				zval_ptr_dtor(&intern->elements[i]);
+			}
+		}
+		efree(intern->elements);
+	}
+	
 	efree(object);
 }
 
@@ -2220,7 +2234,7 @@ static HashTable *dbus_set_get_properties(zval *object TSRMLS_DC)
 
 	props = set_obj->std.properties;
 
-	ALLOC_ZVAL(set_contents);
+	MAKE_STD_ZVAL(set_contents);
 	array_init(set_contents);
 	for (i = 0; i < set_obj->element_count; i++) {
 		Z_ADDREF_P(set_obj->elements[i]);
@@ -2246,6 +2260,7 @@ PHP_METHOD(DbusSet, __construct)
 	if (SUCCESS == zend_get_parameters_array_ex(elements, data)) {
 		dbus_set_initialize(zend_object_store_get_object(getThis() TSRMLS_CC), data, elements TSRMLS_CC);
 	}
+	efree(data);
 	dbus_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 }
 /* }}} */
