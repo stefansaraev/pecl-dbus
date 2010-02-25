@@ -1746,6 +1746,8 @@ static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 
 						if (val && Z_TYPE_P(new_key) == IS_STRING) {
 							add_assoc_zval_ex(dictobj->elements, Z_STRVAL_P(new_key), Z_STRLEN_P(new_key) + 1, val);
+						} else if (val && Z_TYPE_P(new_key) == IS_LONG) {
+							add_index_zval(dictobj->elements, Z_LVAL_P(new_key), val);
 						}
 					} else {
 						if (!init) {
