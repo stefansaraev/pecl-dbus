@@ -3,20 +3,21 @@ $d = new Dbus( Dbus::BUS_SESSION, true );
 $n = $d->createProxy( "com.Skype.API", "/com/Skype", "com.Skype.API");
 var_dump( $n->Invoke( "NAME PHP" ) );
 var_dump( $n->Invoke( "PROTOCOL 7" ) );
-$chatId = $n->Invoke( "CHAT CREATE derickrethans" );
-list( $ignore, $id, $stuff, $stuff2 ) = explode( " ", $chatId[0] );
+$chatId = $n->Invoke( "CHAT CREATE {$argv[1]}" );
+list( $ignore, $id, $stuff, $stuff2 ) = explode( " ", $chatId );
+var_dump( $id );
 var_dump( $n->Invoke( "OPEN CHAT $id" ) );
 
 class testClass {
 	static function notify($a) {
 		global $n;
 
-		var_dump( $a );
-		@list( $a, $b, $c ) = explode( ' ', $a, 3 );
-		if ( $a === "CHATMESSAGE" )
+		@list( $a, $b, $c, $d ) = explode( ' ', $a, 4 );
+
+		if ( $a === "CHATMESSAGE" && in_array( $d, array( 'READ', 'SENT' ) ) )
 		{
 			$data = $n->Invoke( "GET CHATMESSAGE $b BODY" );
-			list( $a, $b, $c, $body ) = explode( ' ', $data[0], 4 );
+			list( $a, $b, $c, $body ) = explode( ' ', $data, 4 );
 			echo $body, "\n";
 		}
 	}
