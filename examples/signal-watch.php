@@ -1,6 +1,6 @@
 <?php
-$d = new Dbus;
-$d->addWatch( 'org.freedesktop.PowerManagement.Backlight' );
+$d = new Dbus( Dbus::BUS_SYSTEM );
+$d->addWatch( 'org.freedesktop.Hal.Device' );
 $d->addWatch( 'nl.derickrethans.Interface' );
 
 $b = 0;
@@ -8,15 +8,21 @@ $b = 0;
 do
 {
 	$s = $d->waitLoop( 1000 );
-	if ( $s && $s->matches( "org.freedesktop.PowerManagement.Backlight", 'BrightnessChanged' ) )
+	if ( !$s ) continue;
+
+	if ( $s->matches( 'org.freedesktop.Hal.Device', 'Condition' ) )
 	{
-		$b = $s->getData();
-		echo "Brightness: {$b[0]}\n";
+		$b = $s->getData()->getData();
+		if ( in_array( 'brightness-up', $b ) ||
+			in_array( 'brightness-down', $b ) )
+		{
+			echo "Brightness changed\n";
+		}
 	}
-	else if ( $s && $s->matches( 'nl.derickrethans.Interface', 'TestSignal' ) )
+	else if ( $s->matches( 'nl.derickrethans.Interface', 'TestSignal' ) )
 	{
 		var_dump( $s->getData() );
 	}
 }
-while ( $b[0] < 100 );
+while ( true );
 ?>
