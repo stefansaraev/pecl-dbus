@@ -27,6 +27,8 @@
 
 #include "Zend/zend_hash.h"
 
+#define PHP_DBUS_VERSION "0.1.0"
+
 extern zend_module_entry dbus_module_entry;
 #define phpext_dbus_ptr &dbus_module_entry
 

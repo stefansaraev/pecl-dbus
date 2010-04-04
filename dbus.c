@@ -360,7 +360,7 @@ zend_module_entry dbus_module_entry = {
 	PHP_RINIT(dbus),            /* request startup */
 	PHP_RSHUTDOWN(dbus),        /* request shutdown */
 	PHP_MINFO(dbus),            /* extension info */
-	PHP_VERSION,                /* extension version */
+	PHP_DBUS_VERSION,           /* extension version */
 	PHP_MODULE_GLOBALS(dbus),   /* globals descriptor */
 	PHP_GINIT(dbus),            /* globals ctor */
 	NULL,                       /* globals dtor */
@@ -415,6 +415,7 @@ PHP_MINFO_FUNCTION(dbus)
 {
 	php_info_print_table_start();
 	php_info_print_table_row(2, "Dbus support", "enabled");
+	php_info_print_table_row(2, "Version", PHP_DBUS_VERSION);
 	php_info_print_table_end();
 
 	DISPLAY_INI_ENTRIES();
