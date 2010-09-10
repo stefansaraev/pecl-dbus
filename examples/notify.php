@@ -23,7 +23,7 @@ $id = $n->Notify(
 			'desktop-entry' => new DBusVariant( 'rhythmbox' )  // the name of the desktop filename representing the calling program
 		) 
 	),
-	1000 // expire timeout in msec
+	5000 // expire timeout in msec
 );
 echo $id[0], "\n";
 ?>
