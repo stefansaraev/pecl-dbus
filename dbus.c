@@ -209,6 +209,7 @@ struct _php_dbus_array_obj {
 struct _php_dbus_dict_obj {
 	zend_object      std;
 	long             type;
+	char            *signature;
 	zval            *elements;
 };
 
@@ -738,6 +739,9 @@ static void dbus_object_free_storage_dbus_dict(void *object TSRMLS_DC)
 {
 	php_dbus_dict_obj *intern = (php_dbus_dict_obj *)object;
 
+	if (intern->signature) {
+		efree(intern->signature);
+	}
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
 }
@@ -1408,17 +1412,35 @@ static int dbus_append_var_array(php_dbus_data_array *data_array, DBusMessageIte
 static int dbus_append_var_dict(php_dbus_data_array *data_array, DBusMessageIter *iter, php_dbus_dict_obj *obj TSRMLS_DC)
 {
 	DBusMessageIter listiter, dictiter;
-	char type_string[5];
+	char *type_string;
 	zval **entry;
 	char *key;
 	uint key_len;
 	ulong num_index;
 
-	type_string[0] = '{';
-	type_string[1] = 's';
-	type_string[2] = (char) obj->type;
-	type_string[3] = '}';
-	type_string[4] = '\0';
+	if (obj->signature) {
+		if (strlen(obj->signature) < 4) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", "Signature should be at least four characters");
+			return 0;
+		}
+		if (obj->signature[0] != '{' || obj->signature[strlen(obj->signature)-1] != '}') {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", "The signature needs to start with { and end with }");
+			return 0;
+		}
+		if (obj->signature[1] != 's') {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", "Only string keys are supported so far");
+		}
+
+		type_string = ecalloc(1, 1 + strlen(obj->signature));
+		strcpy(type_string, obj->signature);
+	} else {
+		type_string = emalloc(5);
+		type_string[0] = '{';
+		type_string[1] = 's';
+		type_string[2] = (char) obj->type;
+		type_string[3] = '}';
+		type_string[4] = '\0';
+	}
 
 	dbus_message_iter_open_container(iter, DBUS_TYPE_ARRAY, type_string, &listiter);
 
@@ -2190,11 +2212,12 @@ PHP_METHOD(DbusArray, getData)
 	zval_copy_ctor(return_value);
 }
 
-static int dbus_dict_initialize(php_dbus_dict_obj *dbusobj, long type, zval *elements TSRMLS_DC)
+static int dbus_dict_initialize(php_dbus_dict_obj *dbusobj, long type, zval *elements, char *signature TSRMLS_DC)
 {
 	dbusobj->type = type;
 	Z_ADDREF_P(elements);
 	dbusobj->elements = elements;
+	dbusobj->signature = signature ? estrdup(signature) : NULL;
 
 	return 1;
 }
@@ -2203,10 +2226,17 @@ static HashTable *dbus_dict_get_properties(zval *object TSRMLS_DC)
 {
 	HashTable *props;
 	php_dbus_dict_obj *dict_obj;
+	zval *sig;
 
 	dict_obj = (php_dbus_dict_obj *) zend_object_store_get_object(object TSRMLS_CC);
 
 	props = dict_obj->std.properties;
+
+	if (dict_obj->signature) {
+		MAKE_STD_ZVAL(sig);
+		ZVAL_STRING(sig, dict_obj->signature, 1);
+		zend_hash_update(props, "signature", 10, (void*)&sig, sizeof(zval *), NULL);
+	}
 
 	zend_hash_update(props, "dict", 5, (void*)&dict_obj->elements, sizeof(zval *), NULL);
 	Z_ADDREF_P(dict_obj->elements);
@@ -2221,10 +2251,12 @@ PHP_METHOD(DbusDict, __construct)
 {
 	long  type;
 	zval *dict;
+	char *signature = NULL;
+	int   signature_len;
 
 	dbus_set_error_handling(EH_THROW, NULL TSRMLS_CC);
-	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "la", &type, &dict)) {
-		dbus_dict_initialize(zend_object_store_get_object(getThis() TSRMLS_CC), type, dict TSRMLS_CC);
+	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "la|s", &type, &dict, &signature, &signature_len)) {
+		dbus_dict_initialize(zend_object_store_get_object(getThis() TSRMLS_CC), type, dict, signature TSRMLS_CC);
 	}
 	dbus_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 }
