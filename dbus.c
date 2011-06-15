@@ -37,6 +37,12 @@
 #define Z_ADDREF_P(z) ((z)->refcount++)
 #endif
 
+#if PHP_MINOR_VERSION > 3
+# define INIT_OBJ_PROP	object_properties_init(&intern->std, class_type);
+#else
+# define INIT_OBJ_PROP	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+#endif
+
 /* {{{ arginfo */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dbus_object___call, 0, 0, 2)
 	ZEND_ARG_INFO(0, function_name)
@@ -534,7 +540,7 @@ static inline zend_object_value dbus_object_new_dbus_ex(zend_class_entry *class_
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus;
@@ -592,7 +598,7 @@ static inline zend_object_value dbus_object_new_dbus_object_ex(zend_class_entry 
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_object, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus_object;
@@ -637,7 +643,7 @@ static inline zend_object_value dbus_object_new_dbus_signal_ex(zend_class_entry 
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_signal, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus_signal;
@@ -684,7 +690,7 @@ static inline zend_object_value dbus_object_new_dbus_array_ex(zend_class_entry *
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_array, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus_array;
@@ -722,7 +728,7 @@ static inline zend_object_value dbus_object_new_dbus_dict_ex(zend_class_entry *c
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_dict, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus_dict;
@@ -760,7 +766,7 @@ static inline zend_object_value dbus_object_new_dbus_variant_ex(zend_class_entry
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_variant, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus_variant;
@@ -795,7 +801,7 @@ static inline zend_object_value dbus_object_new_dbus_set_ex(zend_class_entry *cl
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_set, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus_set;
@@ -842,7 +848,7 @@ static inline zend_object_value dbus_object_new_dbus_struct_ex(zend_class_entry 
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_struct, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus_struct;
@@ -877,7 +883,7 @@ static inline zend_object_value dbus_object_new_dbus_object_path_ex(zend_class_e
 	}
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	INIT_OBJ_PROP;
 	
 	retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_object_path, NULL TSRMLS_CC);
 	retval.handlers = &dbus_object_handlers_dbus_object_path;
@@ -912,7 +918,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 		} \
 		 \
 		zend_object_std_init(&intern->std, class_type TSRMLS_CC); \
-		zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *)); \
+		INIT_OBJ_PROP; \
 		 \
 		retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_dbus_##t, NULL TSRMLS_CC); \
 		retval.handlers = &dbus_object_handlers_dbus_##t; \
