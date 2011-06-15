@@ -16,11 +16,11 @@
   <email>derick@php.net</email>
   <active>yes</active>
  </lead>
- <date>2010-04-04</date>
- <time>01:54:05</time>
+ <date>2011-06-15</date>
+ <time>12:36:07</time>
  <version>
-  <release>0.1.0</release>
-  <api>0.1.0</api>
+  <release>0.1.1</release>
+  <api>0.1.1</api>
  </version>
  <stability>
   <release>beta</release>
@@ -28,7 +28,7 @@
  </stability>
  <license uri="http://www.php.net/license">PHP</license>
  <notes>
-- First release.
+- Compile fix for PHP 5.4/trunk.
  </notes>
  <contents>
   <dir name="/">
