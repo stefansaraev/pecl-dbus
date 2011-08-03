@@ -1031,7 +1031,7 @@ static int dbus_object_initialize(php_dbus_object_obj *dbusobj, php_dbus_obj *db
 	dbusobj->dbus = dbus;
 	dbusobj->destination = estrdup(destination);
 	dbusobj->path = estrdup(path);
-	dbusobj->interface = estrdup(interface);
+	dbusobj->interface = interface ? estrdup(interface) : NULL;
 
 	return 1;
 }
@@ -1099,7 +1099,7 @@ PHP_METHOD(DbusObject, __construct)
 	int   destination_len, path_len, interface_len;
 
 	dbus_set_error_handling(EH_THROW, NULL TSRMLS_CC);
-	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osss",
+	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Osss!",
 		&object, dbus_ce_dbus,
 		&destination, &destination_len, &path, &path_len, 
 		&interface, &interface_len))
@@ -1127,7 +1127,7 @@ PHP_METHOD(Dbus, createProxy)
 	int   destination_len, path_len, interface_len;
 
 	dbus_set_error_handling(EH_THROW, NULL TSRMLS_CC);
-	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss",
+	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss!",
 		&destination, &destination_len, &path, &path_len, 
 		&interface, &interface_len))
 	{
@@ -1221,10 +1221,11 @@ static void php_dbus_do_method_call(php_dbus_obj *dbus, DBusMessage *msg, char *
 
 static void php_dbus_accept_incoming_method_call(php_dbus_obj *dbus, DBusMessage *msg, zval **return_value TSRMLS_DC)
 {
-	char *key, *class;
+	char *key, *class, *interface;
 
 	/* See if we can find a class mapping for this object */
-	spprintf(&key, 0, "%s:%s", dbus_message_get_path(msg), dbus_message_get_interface(msg));
+	interface = dbus_message_get_interface(msg);
+	spprintf(&key, 0, "%s:%s", dbus_message_get_path(msg), interface ? interface : "(null)");
 	if (zend_hash_find(&(dbus->objects), key, strlen(key) + 1, (void**) &class) == SUCCESS) {
 		zend_class_entry **pce;
 
@@ -1336,14 +1337,17 @@ PHP_METHOD(Dbus, registerObject)
 
 	dbus_set_error_handling(EH_THROW, NULL TSRMLS_CC);
 	if (FAILURE == zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(),
-		"Osss", &object, dbus_ce_dbus, &path, &path_len, &interface, &interface_len,
+		"Oss!s", &object, dbus_ce_dbus, &path, &path_len, &interface, &interface_len,
 		&class, &class_len)) {
 		RETURN_FALSE;
 	}
 	dbus = (php_dbus_obj *) zend_object_store_get_object(object TSRMLS_CC);
 
 	/* Create the key out of the path and interface */
-	spprintf(&key, 0, "%s:%s", path, interface);
+	spprintf(&key, 0, "%s:%s", path, interface ? interface : "(null)");
+	if (interface == NULL) {
+		interface_len = 6;
+	}
 
 	/* Add class name to hash */
 	zend_hash_add(&(dbus->objects), key, path_len + interface_len + 2, (void*) estrdup(class), strlen(class)+1, NULL);
