@@ -26,6 +26,7 @@
 #include "ext/standard/php_versioning.h"
 #include "php_dbus.h"
 #include "zend_extensions.h"
+#include "zend_exceptions.h"
 #include "zend_interfaces.h"
 #include "zend_hash.h"
 #include "dbus/dbus.h"
@@ -157,6 +158,7 @@ zend_class_entry *dbus_ce_dbus, *dbus_ce_dbus_object, *dbus_ce_dbus_signal;
 zend_class_entry *dbus_ce_dbus_array, *dbus_ce_dbus_dict, *dbus_ce_dbus_variant;
 zend_class_entry *dbus_ce_dbus_variant, *dbus_ce_dbus_set, *dbus_ce_dbus_struct;
 zend_class_entry *dbus_ce_dbus_object_path;
+zend_class_entry *dbus_ce_dbus_exception, *dbus_ce_dbus_exception_service, *dbus_ce_dbus_exception_method;
 
 static zend_object_handlers dbus_object_handlers_dbus, dbus_object_handlers_dbus_object;
 static zend_object_handlers dbus_object_handlers_dbus_signal;
@@ -444,6 +446,7 @@ static void dbus_register_classes(TSRMLS_D)
 	zend_class_entry ce_dbus, ce_dbus_object, ce_dbus_array, ce_dbus_dict;
 	zend_class_entry ce_dbus_variant, ce_dbus_signal, ce_dbus_set, ce_dbus_struct;
 	zend_class_entry ce_dbus_object_path;
+	zend_class_entry ce_dbus_exception, ce_dbus_exception_service, ce_dbus_exception_method;
 
 	INIT_CLASS_ENTRY(ce_dbus, "Dbus", dbus_funcs_dbus);
 	ce_dbus.create_object = dbus_object_new_dbus;
@@ -469,6 +472,18 @@ static void dbus_register_classes(TSRMLS_D)
 
 	zend_declare_class_constant_long(dbus_ce_dbus, "BUS_SESSION", sizeof("BUS_SESSION")-1, DBUS_BUS_SESSION TSRMLS_CC);
 	zend_declare_class_constant_long(dbus_ce_dbus, "BUS_SYSTEM", sizeof("BUS_SYSTEM")-1, DBUS_BUS_SYSTEM TSRMLS_CC);
+
+	INIT_CLASS_ENTRY(ce_dbus_exception, "DbusException", NULL);
+	dbus_ce_dbus_exception = zend_register_internal_class_ex(&ce_dbus_exception, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	dbus_ce_dbus_exception->ce_flags |= ZEND_ACC_FINAL;
+
+	INIT_CLASS_ENTRY(ce_dbus_exception_service, "DbusExceptionServiceUnknown", NULL);
+	dbus_ce_dbus_exception_service = zend_register_internal_class_ex(&ce_dbus_exception_service, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	dbus_ce_dbus_exception_service->ce_flags |= ZEND_ACC_FINAL;
+
+	INIT_CLASS_ENTRY(ce_dbus_exception_method, "DbusExceptionUnknownMethod", NULL);
+	dbus_ce_dbus_exception_method = zend_register_internal_class_ex(&ce_dbus_exception_method, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	dbus_ce_dbus_exception_method->ce_flags |= ZEND_ACC_FINAL;
 
 	INIT_CLASS_ENTRY(ce_dbus_object, "DbusObject", dbus_funcs_dbus_object);
 	ce_dbus_object.create_object = dbus_object_new_dbus_object;
@@ -1883,12 +1898,23 @@ static zval* php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 
 static int php_dbus_handle_reply(zval *return_value, DBusMessage *msg, int always_array TSRMLS_DC)
 {
-	DBusMessageIter args;
-	dbus_int64_t    stat;
-	zval           *val;
+	zend_class_entry *exception_ce = NULL;
+	DBusMessageIter   args;
+	dbus_int64_t      stat;
+	zval             *val;
 
 	if (dbus_message_get_type(msg) == DBUS_MESSAGE_TYPE_ERROR) {
-		dbus_set_error_handling(EH_THROW, NULL TSRMLS_CC);
+		const char* error_msg_str = dbus_message_get_error_name(msg);
+
+		if (!strcmp(error_msg_str, DBUS_ERROR_SERVICE_UNKNOWN)) {
+			exception_ce = dbus_ce_dbus_exception_service;
+		} else if (!strcmp(error_msg_str, DBUS_ERROR_UNKNOWN_METHOD)) {
+			exception_ce = dbus_ce_dbus_exception_method;
+		} else {
+			exception_ce = dbus_ce_dbus_exception;
+		}
+
+		dbus_set_error_handling(EH_THROW, exception_ce TSRMLS_CC);
 		if (!dbus_message_iter_init(msg, &args)) {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", dbus_message_get_error_name(msg));
 			return 0;
