@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 5                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2008 The PHP Group                                |
+   | Copyright (c) 2008-2013 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -39,7 +39,7 @@
 #endif
 
 #if PHP_MINOR_VERSION > 3
-# define INIT_OBJ_PROP	object_properties_init(&intern->std, class_type);
+# define INIT_OBJ_PROP	object_properties_init(&intern->std, class_type); if (!intern->std.properties) { rebuild_object_properties(&intern->std); };
 #else
 # define INIT_OBJ_PROP	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
 #endif
@@ -348,9 +348,9 @@ static zend_object_value dbus_object_clone_dbus(zval *this_ptr TSRMLS_DC);
 
 static int dbus_object_compare_dbus(zval *d1, zval *d2 TSRMLS_DC);
 
-/* This is need to ensure that session extension request shutdown occurs 1st, because it uses the dbus extension */ 
 static const zend_module_dep dbus_deps[] = {
-	{NULL, NULL, NULL}
+	ZEND_MOD_REQUIRED("libxml")
+	ZEND_MOD_END
 };
 
 #ifdef COMPILE_DL_DBUS
@@ -2208,8 +2208,8 @@ static HashTable *dbus_array_get_properties(zval *object TSRMLS_DC)
 		zend_hash_update(props, "signature", 10, (void*)&sig, sizeof(zval *), NULL);
 	}
 
-	zend_hash_update(props, "array", 6, (void*)&array_obj->elements, sizeof(zval *), NULL);
 	Z_ADDREF_P(array_obj->elements);
+	zend_hash_update(props, "array", 6, (void*)&array_obj->elements, sizeof(zval *), NULL);
 
 	return props;
 }
@@ -2274,8 +2274,8 @@ static HashTable *dbus_dict_get_properties(zval *object TSRMLS_DC)
 		zend_hash_update(props, "signature", 10, (void*)&sig, sizeof(zval *), NULL);
 	}
 
-	zend_hash_update(props, "dict", 5, (void*)&dict_obj->elements, sizeof(zval *), NULL);
 	Z_ADDREF_P(dict_obj->elements);
+	zend_hash_update(props, "dict", 5, (void*)&dict_obj->elements, sizeof(zval *), NULL);
 
 	return props;
 }
@@ -2328,8 +2328,8 @@ static HashTable *dbus_variant_get_properties(zval *object TSRMLS_DC)
 
 	props = variant_obj->std.properties;
 
-	zend_hash_update(props, "variant", 8, (void*)&variant_obj->data, sizeof(zval *), NULL);
 	Z_ADDREF_P(variant_obj->data);
+	zend_hash_update(props, "variant", 8, (void*)&variant_obj->data, sizeof(zval *), NULL);
 
 	return props;
 }
@@ -2453,8 +2453,8 @@ static HashTable *dbus_struct_get_properties(zval *object TSRMLS_DC)
 
 	props = struct_obj->std.properties;
 
-	zend_hash_update(props, "struct", 7, (void*)&struct_obj->elements, sizeof(zval *), NULL);
 	Z_ADDREF_P(struct_obj->elements);
+	zend_hash_update(props, "struct", 7, (void*)&struct_obj->elements, sizeof(zval *), NULL);
 
 	return props;
 }
