@@ -44,6 +44,10 @@
 # define INIT_OBJ_PROP	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
 #endif
 
+#ifndef ZEND_MOD_END
+#define ZEND_MOD_END {NULL, NULL, NULL}
+#endif
+
 /* {{{ arginfo */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dbus_object___call, 0, 0, 2)
 	ZEND_ARG_INFO(0, function_name)
