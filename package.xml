@@ -39,6 +39,31 @@
    <file name="introspect.h" role="src" />
    <file name="introspect.c" role="src" />
    <file name="dbus.c" role="src" />
+   <dir name="examples">
+     <file role="doc" name="add-system-connection.php" />
+     <file role="doc" name="call-array-dict-variant.php" />
+     <file role="doc" name="call-empty-interface.php" />
+     <file role="doc" name="call-introspect.php" />
+     <file role="doc" name="call-multiple-returns.php" />
+     <file role="doc" name="call-non-class.php" />
+     <file role="doc" name="call-non-registered-class.php" />
+     <file role="doc" name="call-own.php" />
+     <file role="doc" name="call-wrong-method.php" />
+     <file role="doc" name="empathy-find-accounts.php" />
+     <file role="doc" name="introspect.php" />
+     <file role="doc" name="introspect.xml" />
+     <file role="doc" name="notify-introspect.php" />
+     <file role="doc" name="notify.php" />
+     <file role="doc" name="pidgin-find-accounts.php" />
+     <file role="doc" name="request-name.php" />
+     <file role="doc" name="screensaver.php" />
+     <file role="doc" name="send-im.php" />
+     <file role="doc" name="server-empty-interface.php" />
+     <file role="doc" name="signal-send.php" />
+     <file role="doc" name="signal-watch.php" />
+     <file role="doc" name="skype-poll.php" />
+     <file role="doc" name="skype-signal.php" />
+   </dir> <!-- examples -->
   </dir> <!-- / -->
  </contents>
  <dependencies>
