@@ -26,7 +26,7 @@
   <release>beta</release>
   <api>beta</api>
  </stability>
- <license uri="http://www.php.net/license">PHP</license>
+ <license uri="http://www.php.net/license/3_01.txt">PHP 3.01</license>
  <notes>
 - Compile fix for PHP 5.4/trunk.
  </notes>
@@ -34,6 +34,7 @@
   <dir name="/">
    <file name="config.m4" role="src" />
    <file name="CREDITS" role="doc" />
+   <file name="LICENSE" role="doc" />
    <file name="php_dbus.h" role="src" />
    <file name="introspect.h" role="src" />
    <file name="introspect.c" role="src" />
