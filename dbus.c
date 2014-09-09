@@ -228,6 +228,7 @@ struct _php_dbus_dict_obj {
 struct _php_dbus_variant_obj {
 	zend_object      std;
 	zval            *data;
+	char            *signature;
 };
 
 struct _php_dbus_set_obj {
@@ -332,7 +333,7 @@ static HashTable *dbus_set_get_properties(zval *object TSRMLS_DC);
 static HashTable *dbus_struct_get_properties(zval *object TSRMLS_DC);
 static HashTable *dbus_object_path_get_properties(zval *object TSRMLS_DC);
 
-static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data TSRMLS_DC);
+static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data, char *signature TSRMLS_DC);
 
 #define PHP_DBUS_FORWARD_DECL_TYPE_FUNCS(t) \
 	static void dbus_object_free_storage_dbus_##t(void *object TSRMLS_DC); \
@@ -802,6 +803,9 @@ static void dbus_object_free_storage_dbus_variant(void *object TSRMLS_DC)
 {
 	php_dbus_variant_obj *intern = (php_dbus_variant_obj *)object;
 
+	if (intern->signature) {
+		efree(intern->signature);
+	}
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
 }
@@ -1572,7 +1576,11 @@ static int dbus_append_var_variant(php_dbus_data_array *data_array, DBusMessageI
 	DBusMessageIter variant;
 	char *type;
 
-	type = php_dbus_fetch_child_type_as_string(obj->data TSRMLS_CC);
+	if (!obj->signature) {
+		type = php_dbus_fetch_child_type_as_string(obj->data TSRMLS_CC);
+	} else {
+		type = obj->signature;
+	}
 	dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT, type, &variant );
 	dbus_append_var(&(obj->data), data_array, &variant, NULL TSRMLS_CC);
 	dbus_message_iter_close_container(iter, &variant);
@@ -2316,10 +2324,12 @@ PHP_METHOD(DbusDict, getData)
 	zval_copy_ctor(return_value);
 }
 
-static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data TSRMLS_DC)
+static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data, char *signature TSRMLS_DC)
 {
 	Z_ADDREF_P(data);
 	dbusobj->data = data;
+	dbusobj->signature = signature ? estrdup(signature) : NULL;
+
 	return 1;
 }
 
@@ -2344,10 +2354,12 @@ static HashTable *dbus_variant_get_properties(zval *object TSRMLS_DC)
 PHP_METHOD(DbusVariant, __construct)
 {
 	zval *data;
+	char *signature = NULL;
+	int   signature_len;
 
 	dbus_set_error_handling(EH_THROW, NULL TSRMLS_CC);
-	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &data)) {
-		dbus_variant_initialize(zend_object_store_get_object(getThis() TSRMLS_CC), data TSRMLS_CC);
+	if (SUCCESS == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|s", &data, &signature, &signature_len)) {
+		dbus_variant_initialize(zend_object_store_get_object(getThis() TSRMLS_CC), data, signature TSRMLS_CC);
 	}
 	dbus_set_error_handling(EH_NORMAL, NULL TSRMLS_CC);
 }
