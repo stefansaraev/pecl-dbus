@@ -38,6 +38,16 @@
 #define Z_ADDREF_P(z) ((z)->refcount++)
 #endif
 
+#if PHP_MAJOR_VERSION >= 7
+# define PHP_7
+#endif
+
+#ifdef PHP_7
+typedef zend_object* zend_object_compat;
+#else
+typedef zend_object_value zend_object_compat;
+#endif
+
 #if PHP_MINOR_VERSION > 3
 # define INIT_OBJ_PROP	object_properties_init(&intern->std, class_type); if (!intern->std.properties) { rebuild_object_properties(&intern->std); };
 #else
@@ -306,15 +316,15 @@ static void dbus_object_free_storage_dbus_set(void *object TSRMLS_DC);
 static void dbus_object_free_storage_dbus_struct(void *object TSRMLS_DC);
 static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC);
 
-static zend_object_value dbus_object_new_dbus(zend_class_entry *class_type TSRMLS_DC);
-static zend_object_value dbus_object_new_dbus_object(zend_class_entry *class_type TSRMLS_DC);
-static zend_object_value dbus_object_new_dbus_signal(zend_class_entry *class_type TSRMLS_DC);
-static zend_object_value dbus_object_new_dbus_array(zend_class_entry *class_type TSRMLS_DC);
-static zend_object_value dbus_object_new_dbus_dict(zend_class_entry *class_type TSRMLS_DC);
-static zend_object_value dbus_object_new_dbus_variant(zend_class_entry *class_type TSRMLS_DC);
-static zend_object_value dbus_object_new_dbus_set(zend_class_entry *class_type TSRMLS_DC);
-static zend_object_value dbus_object_new_dbus_struct(zend_class_entry *class_type TSRMLS_DC);
-static zend_object_value dbus_object_new_dbus_object_path(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus_object(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus_signal(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus_array(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus_dict(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus_variant(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus_set(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus_struct(zend_class_entry *class_type TSRMLS_DC);
+static zend_object_compat dbus_object_new_dbus_object_path(zend_class_entry *class_type TSRMLS_DC);
 
 static HashTable *dbus_byte_get_properties(zval *object TSRMLS_DC);
 static HashTable *dbus_bool_get_properties(zval *object TSRMLS_DC);
@@ -337,7 +347,7 @@ static int dbus_variant_initialize(php_dbus_variant_obj *dbusobj, zval *data, ch
 
 #define PHP_DBUS_FORWARD_DECL_TYPE_FUNCS(t) \
 	static void dbus_object_free_storage_dbus_##t(void *object TSRMLS_DC); \
-	static zend_object_value dbus_object_new_dbus_##t(zend_class_entry *class_type TSRMLS_DC);
+	static zend_object_compat dbus_object_new_dbus_##t(zend_class_entry *class_type TSRMLS_DC);
 
 PHP_DBUS_FORWARD_DECL_TYPE_FUNCS(byte);
 PHP_DBUS_FORWARD_DECL_TYPE_FUNCS(bool);
@@ -349,7 +359,7 @@ PHP_DBUS_FORWARD_DECL_TYPE_FUNCS(int64);
 PHP_DBUS_FORWARD_DECL_TYPE_FUNCS(uint64);
 PHP_DBUS_FORWARD_DECL_TYPE_FUNCS(double);
 
-static zend_object_value dbus_object_clone_dbus(zval *this_ptr TSRMLS_DC);
+static zend_object_compat dbus_object_clone_dbus(zval *this_ptr TSRMLS_DC);
 
 static int dbus_object_compare_dbus(zval *d1, zval *d2 TSRMLS_DC);
 
@@ -547,10 +557,10 @@ static void dbus_register_classes(TSRMLS_D)
 	PHP_DBUS_REGISTER_TYPE_CLASS(double, "DbusDouble");
 }
 
-static inline zend_object_value dbus_object_new_dbus_ex(zend_class_entry *class_type, php_dbus_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_ex(zend_class_entry *class_type, php_dbus_obj **ptr TSRMLS_DC)
 {
 	php_dbus_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_obj));
@@ -568,16 +578,16 @@ static inline zend_object_value dbus_object_new_dbus_ex(zend_class_entry *class_
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_ex(class_type, NULL TSRMLS_CC);
 }
 
-static zend_object_value dbus_object_clone_dbus(zval *this_ptr TSRMLS_DC)
+static zend_object_compat dbus_object_clone_dbus(zval *this_ptr TSRMLS_DC)
 {
 	php_dbus_obj *new_obj = NULL;
 	php_dbus_obj *old_obj = (php_dbus_obj *) zend_object_store_get_object(this_ptr TSRMLS_CC);
-	zend_object_value new_ov = dbus_object_new_dbus_ex(old_obj->std.ce, &new_obj TSRMLS_CC);
+	zend_object_compat new_ov = dbus_object_new_dbus_ex(old_obj->std.ce, &new_obj TSRMLS_CC);
 	
 	zend_objects_clone_members(&new_obj->std, new_ov, &old_obj->std, Z_OBJ_HANDLE_P(this_ptr) TSRMLS_CC);
 	
@@ -605,10 +615,10 @@ static void dbus_object_free_storage_dbus(void *object TSRMLS_DC)
 }
 
 /* DBUS Object*/
-static inline zend_object_value dbus_object_new_dbus_object_ex(zend_class_entry *class_type, php_dbus_object_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_object_ex(zend_class_entry *class_type, php_dbus_object_obj **ptr TSRMLS_DC)
 {
 	php_dbus_object_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_object_obj));
@@ -626,7 +636,7 @@ static inline zend_object_value dbus_object_new_dbus_object_ex(zend_class_entry 
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus_object(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus_object(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_object_ex(class_type, NULL TSRMLS_CC);
 }
@@ -650,10 +660,10 @@ static void dbus_object_free_storage_dbus_object(void *object TSRMLS_DC)
 }
 
 /* DBUS Signal */
-static inline zend_object_value dbus_object_new_dbus_signal_ex(zend_class_entry *class_type, php_dbus_signal_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_signal_ex(zend_class_entry *class_type, php_dbus_signal_obj **ptr TSRMLS_DC)
 {
 	php_dbus_signal_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_signal_obj));
@@ -671,7 +681,7 @@ static inline zend_object_value dbus_object_new_dbus_signal_ex(zend_class_entry 
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus_signal(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus_signal(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_signal_ex(class_type, NULL TSRMLS_CC);
 }
@@ -697,10 +707,10 @@ static void dbus_object_free_storage_dbus_signal(void *object TSRMLS_DC)
 }
 
 /* DBUS Array*/
-static inline zend_object_value dbus_object_new_dbus_array_ex(zend_class_entry *class_type, php_dbus_array_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_array_ex(zend_class_entry *class_type, php_dbus_array_obj **ptr TSRMLS_DC)
 {
 	php_dbus_array_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_array_obj));
@@ -718,7 +728,7 @@ static inline zend_object_value dbus_object_new_dbus_array_ex(zend_class_entry *
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus_array(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus_array(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_array_ex(class_type, NULL TSRMLS_CC);
 }
@@ -735,10 +745,10 @@ static void dbus_object_free_storage_dbus_array(void *object TSRMLS_DC)
 }
 
 /* DBUS DICT */
-static inline zend_object_value dbus_object_new_dbus_dict_ex(zend_class_entry *class_type, php_dbus_dict_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_dict_ex(zend_class_entry *class_type, php_dbus_dict_obj **ptr TSRMLS_DC)
 {
 	php_dbus_dict_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_dict_obj));
@@ -756,7 +766,7 @@ static inline zend_object_value dbus_object_new_dbus_dict_ex(zend_class_entry *c
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus_dict(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus_dict(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_dict_ex(class_type, NULL TSRMLS_CC);
 }
@@ -773,10 +783,10 @@ static void dbus_object_free_storage_dbus_dict(void *object TSRMLS_DC)
 }
 
 /* DBUS VARIANT */
-static inline zend_object_value dbus_object_new_dbus_variant_ex(zend_class_entry *class_type, php_dbus_variant_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_variant_ex(zend_class_entry *class_type, php_dbus_variant_obj **ptr TSRMLS_DC)
 {
 	php_dbus_variant_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_variant_obj));
@@ -794,7 +804,7 @@ static inline zend_object_value dbus_object_new_dbus_variant_ex(zend_class_entry
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus_variant(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus_variant(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_variant_ex(class_type, NULL TSRMLS_CC);
 }
@@ -811,10 +821,10 @@ static void dbus_object_free_storage_dbus_variant(void *object TSRMLS_DC)
 }
 
 /* DBUS SET */
-static inline zend_object_value dbus_object_new_dbus_set_ex(zend_class_entry *class_type, php_dbus_set_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_set_ex(zend_class_entry *class_type, php_dbus_set_obj **ptr TSRMLS_DC)
 {
 	php_dbus_set_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_set_obj));
@@ -832,7 +842,7 @@ static inline zend_object_value dbus_object_new_dbus_set_ex(zend_class_entry *cl
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus_set(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus_set(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_set_ex(class_type, NULL TSRMLS_CC);
 }
@@ -858,10 +868,10 @@ static void dbus_object_free_storage_dbus_set(void *object TSRMLS_DC)
 }
 
 /* DBUS Struct*/
-static inline zend_object_value dbus_object_new_dbus_struct_ex(zend_class_entry *class_type, php_dbus_struct_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_struct_ex(zend_class_entry *class_type, php_dbus_struct_obj **ptr TSRMLS_DC)
 {
 	php_dbus_struct_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_struct_obj));
@@ -879,7 +889,7 @@ static inline zend_object_value dbus_object_new_dbus_struct_ex(zend_class_entry 
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus_struct(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus_struct(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_struct_ex(class_type, NULL TSRMLS_CC);
 }
@@ -893,10 +903,10 @@ static void dbus_object_free_storage_dbus_struct(void *object TSRMLS_DC)
 }
 
 /* DBUS Object Path*/
-static inline zend_object_value dbus_object_new_dbus_object_path_ex(zend_class_entry *class_type, php_dbus_object_path_obj **ptr TSRMLS_DC)
+static inline zend_object_compat dbus_object_new_dbus_object_path_ex(zend_class_entry *class_type, php_dbus_object_path_obj **ptr TSRMLS_DC)
 {
 	php_dbus_object_path_obj *intern;
-	zend_object_value retval;
+	zend_object_compat retval;
 	zval *tmp;
 
 	intern = emalloc(sizeof(php_dbus_object_path_obj));
@@ -914,7 +924,7 @@ static inline zend_object_value dbus_object_new_dbus_object_path_ex(zend_class_e
 	return retval;
 }
 
-static zend_object_value dbus_object_new_dbus_object_path(zend_class_entry *class_type TSRMLS_DC)
+static zend_object_compat dbus_object_new_dbus_object_path(zend_class_entry *class_type TSRMLS_DC)
 {
 	return dbus_object_new_dbus_object_path_ex(class_type, NULL TSRMLS_CC);
 }
@@ -928,10 +938,10 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 }
 
 #define PHP_DBUS_DEFINE_TYPE_OBJ_FUNCS(t,pt,pf) \
-	static inline zend_object_value dbus_object_new_dbus_##t##_ex(zend_class_entry *class_type, php_dbus_##t##_obj **ptr TSRMLS_DC) \
+	static inline zend_object_compat dbus_object_new_dbus_##t##_ex(zend_class_entry *class_type, php_dbus_##t##_obj **ptr TSRMLS_DC) \
 	{ \
 		php_dbus_##t##_obj *intern; \
-		zend_object_value retval; \
+		zend_object_compat retval; \
 		zval *tmp; \
  \
 		intern = emalloc(sizeof(php_dbus_##t##_obj)); \
@@ -949,7 +959,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 		return retval; \
 	} \
  \
-	static zend_object_value dbus_object_new_dbus_##t(zend_class_entry *class_type TSRMLS_DC) \
+	static zend_object_compat dbus_object_new_dbus_##t(zend_class_entry *class_type TSRMLS_DC) \
 	{ \
 		return dbus_object_new_dbus_##t##_ex(class_type, NULL TSRMLS_CC); \
 	} \
