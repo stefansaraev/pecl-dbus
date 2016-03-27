@@ -24,3 +24,8 @@ config.status
 libtool
 .idea
 CMakeLists.txt
+.libs
+dbus.la
+dbus.lo
+dbus.so
+introspect.lo
