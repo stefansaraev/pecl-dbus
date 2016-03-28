@@ -45,9 +45,15 @@
 #ifdef PHP_7
 typedef zend_object* zend_object_compat;
 #define ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(ce, parent) zend_register_internal_class_ex(ce, parent)
+#define ZVAL_STRING_COMPAT(zv, str, af) \
+  ZVAL_STRING(zv, str); \
+  if (0 == af) { \
+    efree(str); \
+  }
 #else
 typedef zend_object_value zend_object_compat;
 #define ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(ce, parent) zend_register_internal_class_ex(ce, parent, NULL TSRMLS_CC)
+#define ZVAL_STRING_COMPAT(zv, str, af) ZVAL_STRING(zv, str, af);
 #endif
 
 #if PHP_MINOR_VERSION > 3
@@ -2228,7 +2234,7 @@ static HashTable *dbus_array_get_properties(zval *object TSRMLS_DC)
 
 	if (array_obj->signature) {
 		MAKE_STD_ZVAL(sig);
-		ZVAL_STRING(sig, array_obj->signature, 1);
+		ZVAL_STRING_COMPAT(sig, array_obj->signature, 1);
 		zend_hash_update(props, "signature", 10, (void*)&sig, sizeof(zval *), NULL);
 	}
 
@@ -2294,7 +2300,7 @@ static HashTable *dbus_dict_get_properties(zval *object TSRMLS_DC)
 
 	if (dict_obj->signature) {
 		MAKE_STD_ZVAL(sig);
-		ZVAL_STRING(sig, dict_obj->signature, 1);
+		ZVAL_STRING_COMPAT(sig, dict_obj->signature, 1);
 		zend_hash_update(props, "signature", 10, (void*)&sig, sizeof(zval *), NULL);
 	}
 
@@ -2536,7 +2542,7 @@ static HashTable *dbus_object_path_get_properties(zval *object TSRMLS_DC)
 	props = object_path_obj->std.properties;
 
 	MAKE_STD_ZVAL(path);
-	ZVAL_STRING(path, object_path_obj->path, 1);
+	ZVAL_STRING_COMPAT(path, object_path_obj->path, 1);
 
 	zend_hash_update(props, "path", 5, (void*)&path, sizeof(zval*), NULL);
 
@@ -2571,7 +2577,11 @@ PHP_METHOD(DbusObjectPath, getData)
 	}
 	object_path_obj = (php_dbus_object_path_obj *) zend_object_store_get_object(object TSRMLS_CC);
 
+#ifdef PHP_7
+	RETURN_STRING(object_path_obj->path);
+#else
 	RETURN_STRING(object_path_obj->path, 1);
+#endif
 }
 
 
