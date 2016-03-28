@@ -50,10 +50,12 @@ typedef zend_object* zend_object_compat;
   if (0 == af) { \
     efree(str); \
   }
+#define COMPAT_ALLOC_INTERN(o, t) ecalloc(1, sizeof(o) + zend_object_properties_size(t))
 #else
 typedef zend_object_value zend_object_compat;
 #define ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(ce, parent) zend_register_internal_class_ex(ce, parent, NULL TSRMLS_CC)
 #define ZVAL_STRING_COMPAT(zv, str, af) ZVAL_STRING(zv, str, af);
+#define COMPAT_ALLOC_INTERN(o, t) emalloc(sizeof(o))
 #endif
 
 #if PHP_MINOR_VERSION > 3
@@ -571,7 +573,7 @@ static inline zend_object_compat dbus_object_new_dbus_ex(zend_class_entry *class
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -629,7 +631,7 @@ static inline zend_object_compat dbus_object_new_dbus_object_ex(zend_class_entry
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_object_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_object_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_object_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -674,7 +676,7 @@ static inline zend_object_compat dbus_object_new_dbus_signal_ex(zend_class_entry
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_signal_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_signal_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_signal_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -721,7 +723,7 @@ static inline zend_object_compat dbus_object_new_dbus_array_ex(zend_class_entry 
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_array_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_array_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_array_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -759,7 +761,7 @@ static inline zend_object_compat dbus_object_new_dbus_dict_ex(zend_class_entry *
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_dict_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_dict_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_dict_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -797,7 +799,7 @@ static inline zend_object_compat dbus_object_new_dbus_variant_ex(zend_class_entr
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_variant_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_variant_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_variant_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -835,7 +837,7 @@ static inline zend_object_compat dbus_object_new_dbus_set_ex(zend_class_entry *c
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_set_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_set_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_set_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -882,7 +884,7 @@ static inline zend_object_compat dbus_object_new_dbus_struct_ex(zend_class_entry
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_struct_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_struct_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_struct_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -917,7 +919,7 @@ static inline zend_object_compat dbus_object_new_dbus_object_path_ex(zend_class_
 	zend_object_compat retval;
 	zval *tmp;
 
-	intern = emalloc(sizeof(php_dbus_object_path_obj));
+	intern = COMPAT_ALLOC_INTERN(php_dbus_object_path_obj, class_type);
 	memset(intern, 0, sizeof(php_dbus_object_path_obj));
 	if (ptr) {
 		*ptr = intern;
@@ -952,7 +954,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 		zend_object_compat retval; \
 		zval *tmp; \
  \
-		intern = emalloc(sizeof(php_dbus_##t##_obj)); \
+		intern = COMPAT_ALLOC_INTERN(php_dbus_##t##_obj, class_type); \
 		memset(intern, 0, sizeof(php_dbus_##t##_obj)); \
 		if (ptr) { \
 			*ptr = intern; \
