@@ -1,0 +1,20 @@
+language: php
+
+php:
+  - 5.6
+  - 7.0
+
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y libdbus-1-dev
+
+# libdbus-1-dev is not whitelisted
+#addons:
+#  apt:
+#    packages:
+#      - libdbus-1-dev
+
+script:
+  - phpize
+  - ./configure
+  - make
