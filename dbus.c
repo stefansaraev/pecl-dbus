@@ -976,7 +976,11 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 
 
 PHP_DBUS_DEFINE_TYPE_OBJ_FUNCS(byte,IS_LONG,lval);
+#ifdef PHP_7
+PHP_DBUS_DEFINE_TYPE_OBJ_FUNCS(bool,IS_TRUE || IS_FALSE,lval);
+#else
 PHP_DBUS_DEFINE_TYPE_OBJ_FUNCS(bool,IS_BOOL,lval);
+#endif
 PHP_DBUS_DEFINE_TYPE_OBJ_FUNCS(int16,IS_LONG,lval);
 PHP_DBUS_DEFINE_TYPE_OBJ_FUNCS(uint16,IS_LONG,lval);
 PHP_DBUS_DEFINE_TYPE_OBJ_FUNCS(int32,IS_LONG,lval);
@@ -1497,7 +1501,12 @@ static int php_dbus_fetch_child_type(zval *child TSRMLS_DC)
 	zend_object     *obj;
 
 	switch (Z_TYPE_P(child)) {
+#ifdef PHP_7
+		case IS_TRUE:
+		case IS_FALSE:
+#else
 		case IS_BOOL:
+#endif
 			return DBUS_TYPE_BOOLEAN;
 		case IS_LONG:
 			return DBUS_TYPE_INT32;
@@ -1536,7 +1545,12 @@ static char* php_dbus_fetch_child_type_as_string(zval *child TSRMLS_DC)
 	zend_object     *obj;
 
 	switch (Z_TYPE_P(child)) {
+#ifdef PHP_7
+		case IS_TRUE:
+		case IS_FALSE:
+#else
 		case IS_BOOL:
+#endif
 			return DBUS_TYPE_BOOLEAN_AS_STRING;
 		case IS_LONG:
 			return DBUS_TYPE_INT32_AS_STRING;
@@ -1655,7 +1669,12 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 	void           **data_copy;
 
 	switch (Z_TYPE_PP(val)) {
+#ifdef PHP_7
+		case IS_TRUE:
+		case IS_FALSE:
+#else
 		case IS_BOOL:
+#endif
 			data_copy = php_dbus_get_data_ptr(data_array);
 			*data_copy = emalloc(sizeof(dbus_bool_t));
 			**(dbus_bool_t**)data_copy = (dbus_bool_t) Z_LVAL_PP(val);
