@@ -56,6 +56,8 @@ typedef zend_object* zend_object_compat;
   dbus_object_handlers_##t.free_obj = (zend_object_free_obj_t)dbus_object_free_storage_##t; \
   i->std.handlers = &dbus_object_handlers_##t; \
   return &i->std;
+#define ZEND_HASH_UPDATE_COMPAT(ht, key, zv) \
+  zend_hash_update(ht, zend_string_init(key, sizeof(key)-1, 0), zv)
 #else
 typedef zend_object_value zend_object_compat;
 #define ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(ce, parent) zend_register_internal_class_ex(ce, parent, NULL TSRMLS_CC)
@@ -66,6 +68,8 @@ typedef zend_object_value zend_object_compat;
   retval.handle = zend_objects_store_put(i, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_##t, NULL TSRMLS_CC); \
   retval.handlers = &dbus_object_handlers_##t; \
   return retval;
+#define ZEND_HASH_UPDATE_COMPAT(ht, key, zv) \
+  zend_hash_update(ht, key, strlen(key), (void*)zv, sizeof(zval *), NULL)
 #endif
 
 #if PHP_MINOR_VERSION > 3
@@ -965,7 +969,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
  \
 		props = intern->std.properties; \
  \
-		zend_hash_update(props, "value", 6, (void*)&zv, sizeof(zval *), NULL); \
+		ZEND_HASH_UPDATE_COMPAT(props, "value", zv); \
  \
 		return props; \
 	}
@@ -2207,11 +2211,11 @@ static HashTable *dbus_array_get_properties(zval *object TSRMLS_DC)
 	if (array_obj->signature) {
 		MAKE_STD_ZVAL(sig);
 		ZVAL_STRING_COMPAT(sig, array_obj->signature, 1);
-		zend_hash_update(props, "signature", 10, (void*)&sig, sizeof(zval *), NULL);
+		ZEND_HASH_UPDATE_COMPAT(props, "signature", sig);
 	}
 
 	Z_ADDREF_P(array_obj->elements);
-	zend_hash_update(props, "array", 6, (void*)&array_obj->elements, sizeof(zval *), NULL);
+	ZEND_HASH_UPDATE_COMPAT(props, "array", &array_obj->elements);
 
 	return props;
 }
@@ -2273,11 +2277,11 @@ static HashTable *dbus_dict_get_properties(zval *object TSRMLS_DC)
 	if (dict_obj->signature) {
 		MAKE_STD_ZVAL(sig);
 		ZVAL_STRING_COMPAT(sig, dict_obj->signature, 1);
-		zend_hash_update(props, "signature", 10, (void*)&sig, sizeof(zval *), NULL);
+		ZEND_HASH_UPDATE_COMPAT(props, "signature", sig);
 	}
 
 	Z_ADDREF_P(dict_obj->elements);
-	zend_hash_update(props, "dict", 5, (void*)&dict_obj->elements, sizeof(zval *), NULL);
+	ZEND_HASH_UPDATE_COMPAT(props, "dict", &dict_obj->elements);
 
 	return props;
 }
@@ -2333,7 +2337,7 @@ static HashTable *dbus_variant_get_properties(zval *object TSRMLS_DC)
 	props = variant_obj->std.properties;
 
 	Z_ADDREF_P(variant_obj->data);
-	zend_hash_update(props, "variant", 8, (void*)&variant_obj->data, sizeof(zval *), NULL);
+	ZEND_HASH_UPDATE_COMPAT(props, "variant", &variant_obj->data);
 
 	return props;
 }
@@ -2400,7 +2404,7 @@ static HashTable *dbus_set_get_properties(zval *object TSRMLS_DC)
 		add_next_index_zval(set_contents, set_obj->elements[i]);
 	}
 
-	zend_hash_update(props, "set", 4, (void*)&set_contents, sizeof(zval*), NULL);
+	ZEND_HASH_UPDATE_COMPAT(props, "set", &set_contents);
 
 	return props;
 }
@@ -2460,7 +2464,7 @@ static HashTable *dbus_struct_get_properties(zval *object TSRMLS_DC)
 	props = struct_obj->std.properties;
 
 	Z_ADDREF_P(struct_obj->elements);
-	zend_hash_update(props, "struct", 7, (void*)&struct_obj->elements, sizeof(zval *), NULL);
+	ZEND_HASH_UPDATE_COMPAT(props, "struct", &struct_obj->elements);
 
 	return props;
 }
@@ -2516,7 +2520,7 @@ static HashTable *dbus_object_path_get_properties(zval *object TSRMLS_DC)
 	MAKE_STD_ZVAL(path);
 	ZVAL_STRING_COMPAT(path, object_path_obj->path, 1);
 
-	zend_hash_update(props, "path", 5, (void*)&path, sizeof(zval*), NULL);
+	ZEND_HASH_UPDATE_COMPAT(props, "path", &path);
 
 	return props;
 }
