@@ -29,6 +29,41 @@
 
 #define PHP_DBUS_VERSION "0.1.0"
 
+#if PHP_MAJOR_VERSION >= 7
+typedef zend_object* zend_object_compat;
+
+# define DBUS_ZEND_REGISTER_CLASS(_name, _parent) \
+    do { \
+        dbus_ce_##_name = zend_register_internal_class_ex(&ce_##_name, _parent); \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_ALLOC(_ptr, _ce) \
+    do { \
+        _ptr = ecalloc(1, sizeof(*_ptr) + zend_object_properties_size(_ce)); \
+        if (ptr) { \
+            *ptr = _ptr; \
+        } \
+    } while(0)
+
+#else
+typedef zend_object_value zend_object_compat;
+
+# define DBUS_ZEND_REGISTER_CLASS(_name, _parent) \
+    do { \
+        dbus_ce_##_name = zend_register_internal_class_ex(&ce_##_name, _parent, \
+                                                          NULL TSRMLS_CC); \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_ALLOC(_ptr, _ce) \
+    do { \
+        _ptr = ecalloc(1, sizeof(*_ptr)); \
+        if (ptr) { \
+            *ptr = _ptr; \
+        } \
+    } while(0)
+
+#endif
+
 extern zend_module_entry dbus_module_entry;
 #define phpext_dbus_ptr &dbus_module_entry
 

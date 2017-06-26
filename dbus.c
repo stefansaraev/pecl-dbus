@@ -43,14 +43,11 @@
 #endif
 
 #ifdef PHP_7
-typedef zend_object* zend_object_compat;
-#define ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(ce, parent) zend_register_internal_class_ex(ce, parent)
 #define ZVAL_STRING_COMPAT(zv, str, af) \
   ZVAL_STRING(zv, str); \
   if (0 == af) { \
     efree(str); \
   }
-#define COMPAT_ALLOC_INTERN(o, t) ecalloc(1, sizeof(o) + zend_object_properties_size(t))
 #define COMPAT_RETURN_OBJ_INIT(i, t) \
   dbus_object_handlers_##t.offset = XtOffsetOf(php_##t##_obj, std); \
   dbus_object_handlers_##t.free_obj = (zend_object_free_obj_t)dbus_object_free_storage_##t; \
@@ -59,10 +56,7 @@ typedef zend_object* zend_object_compat;
 #define ZEND_HASH_UPDATE_COMPAT(ht, key, zv) \
   zend_hash_update(ht, zend_string_init(key, sizeof(key)-1, 0), zv)
 #else
-typedef zend_object_value zend_object_compat;
-#define ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(ce, parent) zend_register_internal_class_ex(ce, parent, NULL TSRMLS_CC)
 #define ZVAL_STRING_COMPAT(zv, str, af) ZVAL_STRING(zv, str, af);
-#define COMPAT_ALLOC_INTERN(o, t) emalloc(sizeof(o))
 #define COMPAT_RETURN_OBJ_INIT(i, t) \
   zend_object_compat retval; \
   retval.handle = zend_objects_store_put(i, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_##t, NULL TSRMLS_CC); \
@@ -475,7 +469,7 @@ PHP_MINFO_FUNCTION(dbus)
 		zend_class_entry ce_dbus_##t; \
 		INIT_CLASS_ENTRY(ce_dbus_##t, n, dbus_funcs_dbus_##t); \
 		ce_dbus_##t.create_object = dbus_object_new_dbus_##t; \
-		dbus_ce_dbus_##t = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_##t, NULL); \
+		DBUS_ZEND_REGISTER_CLASS(dbus_##t, NULL); \
 		memcpy(&dbus_object_handlers_dbus_##t, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
 		dbus_object_handlers_dbus_##t.get_properties = dbus_##t##_get_properties; \
 	}
@@ -489,7 +483,7 @@ static void dbus_register_classes(TSRMLS_D)
 
 	INIT_CLASS_ENTRY(ce_dbus, "Dbus", dbus_funcs_dbus);
 	ce_dbus.create_object = dbus_object_new_dbus;
-	dbus_ce_dbus = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus, NULL);
 	memcpy(&dbus_object_handlers_dbus, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	dbus_object_handlers_dbus.clone_obj = dbus_object_clone_dbus;
 	dbus_object_handlers_dbus.compare_objects = dbus_object_compare_dbus;
@@ -513,60 +507,60 @@ static void dbus_register_classes(TSRMLS_D)
 	zend_declare_class_constant_long(dbus_ce_dbus, "BUS_SYSTEM", sizeof("BUS_SYSTEM")-1, DBUS_BUS_SYSTEM TSRMLS_CC);
 
 	INIT_CLASS_ENTRY(ce_dbus_exception, "DbusException", NULL);
-	dbus_ce_dbus_exception = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_exception, zend_exception_get_default(TSRMLS_C));
+	DBUS_ZEND_REGISTER_CLASS(dbus_exception, zend_exception_get_default(TSRMLS_C));
 	dbus_ce_dbus_exception->ce_flags |= ZEND_ACC_FINAL;
 
 	INIT_CLASS_ENTRY(ce_dbus_exception_service, "DbusExceptionServiceUnknown", NULL);
-	dbus_ce_dbus_exception_service = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_exception_service, zend_exception_get_default(TSRMLS_C));
+	DBUS_ZEND_REGISTER_CLASS(dbus_exception_service, zend_exception_get_default(TSRMLS_C));
 	dbus_ce_dbus_exception_service->ce_flags |= ZEND_ACC_FINAL;
 
 	INIT_CLASS_ENTRY(ce_dbus_exception_method, "DbusExceptionUnknownMethod", NULL);
-	dbus_ce_dbus_exception_method = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_exception_method, zend_exception_get_default(TSRMLS_C));
+	DBUS_ZEND_REGISTER_CLASS(dbus_exception_method, zend_exception_get_default(TSRMLS_C));
 	dbus_ce_dbus_exception_method->ce_flags |= ZEND_ACC_FINAL;
 
 	INIT_CLASS_ENTRY(ce_dbus_object, "DbusObject", dbus_funcs_dbus_object);
 	ce_dbus_object.create_object = dbus_object_new_dbus_object;
-	dbus_ce_dbus_object = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_object, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus_object, NULL);
 	memcpy(&dbus_object_handlers_dbus_object, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
 	INIT_CLASS_ENTRY(ce_dbus_signal, "DbusSignal", dbus_funcs_dbus_signal);
 	ce_dbus_signal.create_object = dbus_object_new_dbus_signal;
-	dbus_ce_dbus_signal = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_signal, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus_signal, NULL);
 	memcpy(&dbus_object_handlers_dbus_signal, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
 	INIT_CLASS_ENTRY(ce_dbus_array, "DbusArray", dbus_funcs_dbus_array);
 	ce_dbus_array.create_object = dbus_object_new_dbus_array;
-	dbus_ce_dbus_array = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_array, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus_array, NULL);
 	memcpy(&dbus_object_handlers_dbus_array, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	dbus_object_handlers_dbus_array.get_properties = dbus_array_get_properties;
 
 	INIT_CLASS_ENTRY(ce_dbus_dict, "DbusDict", dbus_funcs_dbus_dict);
 	ce_dbus_dict.create_object = dbus_object_new_dbus_dict;
-	dbus_ce_dbus_dict = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_dict, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus_dict, NULL);
 	memcpy(&dbus_object_handlers_dbus_dict, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	dbus_object_handlers_dbus_dict.get_properties = dbus_dict_get_properties;
 
 	INIT_CLASS_ENTRY(ce_dbus_variant, "DbusVariant", dbus_funcs_dbus_variant);
 	ce_dbus_variant.create_object = dbus_object_new_dbus_variant;
-	dbus_ce_dbus_variant = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_variant, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus_variant, NULL);
 	memcpy(&dbus_object_handlers_dbus_variant, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	dbus_object_handlers_dbus_variant.get_properties = dbus_variant_get_properties;
 
 	INIT_CLASS_ENTRY(ce_dbus_set, "DbusSet", dbus_funcs_dbus_set);
 	ce_dbus_set.create_object = dbus_object_new_dbus_set;
-	dbus_ce_dbus_set = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_set, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus_set, NULL);
 	memcpy(&dbus_object_handlers_dbus_set, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	dbus_object_handlers_dbus_set.get_properties = dbus_set_get_properties;
 
 	INIT_CLASS_ENTRY(ce_dbus_struct, "DbusStruct", dbus_funcs_dbus_struct);
 	ce_dbus_struct.create_object = dbus_object_new_dbus_struct;
-	dbus_ce_dbus_struct = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_struct, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus_struct, NULL);
 	memcpy(&dbus_object_handlers_dbus_struct, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	dbus_object_handlers_dbus_struct.get_properties = dbus_struct_get_properties;
 
 	INIT_CLASS_ENTRY(ce_dbus_object_path, "DbusObjectPath", dbus_funcs_dbus_object_path);
 	ce_dbus_object_path.create_object = dbus_object_new_dbus_object_path;
-	dbus_ce_dbus_object_path = ZEND_REGISTER_INTERNAL_CLASS_EX_COMPAT(&ce_dbus_object_path, NULL);
+	DBUS_ZEND_REGISTER_CLASS(dbus_object_path, NULL);
 	memcpy(&dbus_object_handlers_dbus_object_path, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	dbus_object_handlers_dbus_object_path.get_properties = dbus_object_path_get_properties;
 
@@ -586,12 +580,8 @@ static inline zend_object_compat dbus_object_new_dbus_ex(zend_class_entry *class
 	php_dbus_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -640,12 +630,8 @@ static inline zend_object_compat dbus_object_new_dbus_object_ex(zend_class_entry
 	php_dbus_object_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_object_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_object_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -681,12 +667,8 @@ static inline zend_object_compat dbus_object_new_dbus_signal_ex(zend_class_entry
 	php_dbus_signal_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_signal_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_signal_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -724,12 +706,8 @@ static inline zend_object_compat dbus_object_new_dbus_array_ex(zend_class_entry 
 	php_dbus_array_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_array_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_array_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -758,12 +736,8 @@ static inline zend_object_compat dbus_object_new_dbus_dict_ex(zend_class_entry *
 	php_dbus_dict_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_dict_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_dict_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -792,12 +766,8 @@ static inline zend_object_compat dbus_object_new_dbus_variant_ex(zend_class_entr
 	php_dbus_variant_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_variant_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_variant_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -826,12 +796,8 @@ static inline zend_object_compat dbus_object_new_dbus_set_ex(zend_class_entry *c
 	php_dbus_set_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_set_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_set_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -869,12 +835,8 @@ static inline zend_object_compat dbus_object_new_dbus_struct_ex(zend_class_entry
 	php_dbus_struct_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_struct_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_struct_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -900,12 +862,8 @@ static inline zend_object_compat dbus_object_new_dbus_object_path_ex(zend_class_
 	php_dbus_object_path_obj *intern;
 	zval *tmp;
 
-	intern = COMPAT_ALLOC_INTERN(php_dbus_object_path_obj, class_type);
-	memset(intern, 0, sizeof(php_dbus_object_path_obj));
-	if (ptr) {
-		*ptr = intern;
-	}
-	
+	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
+
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	INIT_OBJ_PROP;
 
@@ -931,11 +889,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 		php_dbus_##t##_obj *intern; \
 		zval *tmp; \
  \
-		intern = COMPAT_ALLOC_INTERN(php_dbus_##t##_obj, class_type); \
-		memset(intern, 0, sizeof(php_dbus_##t##_obj)); \
-		if (ptr) { \
-			*ptr = intern; \
-		} \
+		DBUS_ZEND_OBJECT_ALLOC(intern, class_type); \
 		 \
 		zend_object_std_init(&intern->std, class_type TSRMLS_CC); \
 		INIT_OBJ_PROP; \
