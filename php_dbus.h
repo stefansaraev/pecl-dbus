@@ -29,6 +29,24 @@
 
 #define PHP_DBUS_VERSION "0.1.0"
 
+#ifndef PHP_FE_END
+# define PHP_FE_END {NULL, NULL, NULL}
+#endif
+
+#if PHP_MINOR_VERSION > 3 || PHP_MAJOR_VERSION >= 7
+# define DBUS_ZEND_OBJECT_PROPERTIES_INIT(_objPtr, _ce) \
+    object_properties_init(&_objPtr->std, _ce); \
+    if (!_objPtr->std.properties) { \
+        rebuild_object_properties(&_objPtr->std); \
+    };
+#else
+# define DBUS_ZEND_OBJECT_PROPERTIES_INIT(_objPtr, _ce) \
+    zval *tmp; \
+    zend_hash_copy(_objPtr->std.properties, &_ce->default_properties, \
+                   (copy_ctor_func_t) zval_add_ref, (void *) &tmp, \
+                   sizeof(zval *));
+#endif
+
 #if PHP_MAJOR_VERSION >= 7
 typedef zend_object* zend_object_compat;
 
@@ -37,12 +55,29 @@ typedef zend_object* zend_object_compat;
         dbus_ce_##_name = zend_register_internal_class_ex(&ce_##_name, _parent); \
     } while(0)
 
-# define DBUS_ZEND_OBJECT_ALLOC(_ptr, _ce) \
+# define DBUS_ZEND_OBJECT_ALLOC(_objPtr, _ce) \
     do { \
-        _ptr = ecalloc(1, sizeof(*_ptr) + zend_object_properties_size(_ce)); \
+        _objPtr = ecalloc(1, sizeof(*_objPtr) + zend_object_properties_size(_ce)); \
         if (ptr) { \
-            *ptr = _ptr; \
+            *ptr = _objPtr; \
         } \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_SET_HANDLERS(_objPtr, _objType) \
+    do { \
+        dbus_object_handlers_##_objType.offset = XtOffsetOf(php_##_objType##_obj, std); \
+        dbus_object_handlers_##_objType.free_obj = \
+            (zend_object_free_obj_t) dbus_object_free_storage_##_objType; \
+        _objPtr->std.handlers = &dbus_object_handlers_##_objType; \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_INIT_RETURN(_objPtr, _ce, _objType) \
+    do { \
+        DBUS_ZEND_OBJECT_ALLOC(_objPtr, _ce); \
+        zend_object_std_init(&_objPtr->std, _ce); \
+        DBUS_ZEND_OBJECT_PROPERTIES_INIT(_objPtr, _ce); \
+        DBUS_ZEND_OBJECT_SET_HANDLERS(_objPtr, _objType); \
+        return &_objPtr->std; \
     } while(0)
 
 #else
@@ -54,12 +89,31 @@ typedef zend_object_value zend_object_compat;
                                                           NULL TSRMLS_CC); \
     } while(0)
 
-# define DBUS_ZEND_OBJECT_ALLOC(_ptr, _ce) \
+# define DBUS_ZEND_OBJECT_ALLOC(_objPtr, _ce) \
     do { \
-        _ptr = ecalloc(1, sizeof(*_ptr)); \
+        _objPtr = ecalloc(1, sizeof(*_objPtr)); \
         if (ptr) { \
-            *ptr = _ptr; \
+            *ptr = _objPtr; \
         } \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_SET_HANDLERS(_objPtr, _objType) \
+    do { \
+        retval.handle = zend_objects_store_put(_objPtr, \
+                (zend_objects_store_dtor_t) zend_objects_destroy_object, \
+                (zend_objects_free_object_storage_t) dbus_object_free_storage_##_objType, \
+                NULL TSRMLS_CC); \
+        retval.handlers = &dbus_object_handlers_##_objType; \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_INIT_RETURN(_objPtr, _ce, _objType) \
+    do { \
+        zend_object_compat retval; \
+        DBUS_ZEND_OBJECT_ALLOC(_objPtr, _ce); \
+        zend_object_std_init(&_objPtr->std, _ce TSRMLS_CC); \
+        DBUS_ZEND_OBJECT_PROPERTIES_INIT(_objPtr, _ce); \
+        DBUS_ZEND_OBJECT_SET_HANDLERS(_objPtr, _objType); \
+        return retval; \
     } while(0)
 
 #endif

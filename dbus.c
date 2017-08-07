@@ -48,28 +48,12 @@
   if (0 == af) { \
     efree(str); \
   }
-#define COMPAT_RETURN_OBJ_INIT(i, t) \
-  dbus_object_handlers_##t.offset = XtOffsetOf(php_##t##_obj, std); \
-  dbus_object_handlers_##t.free_obj = (zend_object_free_obj_t)dbus_object_free_storage_##t; \
-  i->std.handlers = &dbus_object_handlers_##t; \
-  return &i->std;
 #define ZEND_HASH_UPDATE_COMPAT(ht, key, zv) \
   zend_hash_update(ht, zend_string_init(key, sizeof(key)-1, 0), zv)
 #else
 #define ZVAL_STRING_COMPAT(zv, str, af) ZVAL_STRING(zv, str, af);
-#define COMPAT_RETURN_OBJ_INIT(i, t) \
-  zend_object_compat retval; \
-  retval.handle = zend_objects_store_put(i, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t) dbus_object_free_storage_##t, NULL TSRMLS_CC); \
-  retval.handlers = &dbus_object_handlers_##t; \
-  return retval;
 #define ZEND_HASH_UPDATE_COMPAT(ht, key, zv) \
   zend_hash_update(ht, key, strlen(key), (void*)zv, sizeof(zval *), NULL)
-#endif
-
-#if PHP_MINOR_VERSION > 3
-# define INIT_OBJ_PROP	object_properties_init(&intern->std, class_type); if (!intern->std.properties) { rebuild_object_properties(&intern->std); };
-#else
-# define INIT_OBJ_PROP	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
 #endif
 
 #ifndef ZEND_MOD_END
@@ -90,13 +74,13 @@ const zend_function_entry dbus_funcs_dbus[] = {
 	PHP_ME(Dbus, requestName, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(Dbus, registerObject, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(Dbus, createProxy, NULL, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 const zend_function_entry dbus_funcs_dbus_object[] = {
 	PHP_ME(DbusObject, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PRIVATE)
 	PHP_ME(DbusObject, __call,      arginfo_dbus_object___call, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 const zend_function_entry dbus_funcs_dbus_signal[] = {
@@ -104,25 +88,25 @@ const zend_function_entry dbus_funcs_dbus_signal[] = {
 	PHP_ME(DbusSignal, matches,     NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(DbusSignal, getData,     NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(DbusSignal, send,        NULL, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 const zend_function_entry dbus_funcs_dbus_array[] = {
 	PHP_ME(DbusArray, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(DbusArray, getData,     NULL, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 const zend_function_entry dbus_funcs_dbus_dict[] = {
 	PHP_ME(DbusDict, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(DbusDict, getData,     NULL, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 #define PHP_DBUS_INT_WRAPPER_DEF(s,t) \
 	const zend_function_entry dbus_funcs_dbus_##s[] = { \
 		PHP_ME(Dbus##t, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC) \
-		{NULL, NULL, NULL} \
+		PHP_FE_END \
 	};
 
 PHP_DBUS_INT_WRAPPER_DEF(byte, Byte);
@@ -138,25 +122,25 @@ PHP_DBUS_INT_WRAPPER_DEF(double, Double);
 const zend_function_entry dbus_funcs_dbus_variant[] = {
 	PHP_ME(DbusVariant, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(DbusVariant, getData,     NULL, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 const zend_function_entry dbus_funcs_dbus_set[] = {
 	PHP_ME(DbusSet, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(DbusSet, getData,     NULL, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 const zend_function_entry dbus_funcs_dbus_struct[] = {
 	PHP_ME(DbusStruct, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(DbusStruct, getData,     NULL, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 const zend_function_entry dbus_funcs_dbus_object_path[] = {
 	PHP_ME(DbusObjectPath, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(DbusObjectPath, getData,     NULL, ZEND_ACC_PUBLIC)
-	{NULL, NULL, NULL}
+	PHP_FE_END
 };
 
 #define PHP_DBUS_CALL_FUNCTION     1
@@ -433,7 +417,6 @@ PHP_RSHUTDOWN_FUNCTION(dbus)
 }
 /* }}} */
 
-
 /* {{{ PHP_MINIT_FUNCTION */
 PHP_MINIT_FUNCTION(dbus)
 {
@@ -578,14 +561,7 @@ static void dbus_register_classes(TSRMLS_D)
 static inline zend_object_compat dbus_object_new_dbus_ex(zend_class_entry *class_type, php_dbus_obj **ptr TSRMLS_DC)
 {
 	php_dbus_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus);
 }
 
 static zend_object_compat dbus_object_new_dbus(zend_class_entry *class_type TSRMLS_DC)
@@ -628,14 +604,7 @@ static void dbus_object_free_storage_dbus(void *object TSRMLS_DC)
 static inline zend_object_compat dbus_object_new_dbus_object_ex(zend_class_entry *class_type, php_dbus_object_obj **ptr TSRMLS_DC)
 {
 	php_dbus_object_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus_object);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_object);
 }
 
 static zend_object_compat dbus_object_new_dbus_object(zend_class_entry *class_type TSRMLS_DC)
@@ -665,14 +634,7 @@ static void dbus_object_free_storage_dbus_object(void *object TSRMLS_DC)
 static inline zend_object_compat dbus_object_new_dbus_signal_ex(zend_class_entry *class_type, php_dbus_signal_obj **ptr TSRMLS_DC)
 {
 	php_dbus_signal_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus_signal);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_signal);
 }
 
 static zend_object_compat dbus_object_new_dbus_signal(zend_class_entry *class_type TSRMLS_DC)
@@ -704,14 +666,7 @@ static void dbus_object_free_storage_dbus_signal(void *object TSRMLS_DC)
 static inline zend_object_compat dbus_object_new_dbus_array_ex(zend_class_entry *class_type, php_dbus_array_obj **ptr TSRMLS_DC)
 {
 	php_dbus_array_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus_array);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_array);
 }
 
 static zend_object_compat dbus_object_new_dbus_array(zend_class_entry *class_type TSRMLS_DC)
@@ -734,14 +689,7 @@ static void dbus_object_free_storage_dbus_array(void *object TSRMLS_DC)
 static inline zend_object_compat dbus_object_new_dbus_dict_ex(zend_class_entry *class_type, php_dbus_dict_obj **ptr TSRMLS_DC)
 {
 	php_dbus_dict_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus_dict);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_dict);
 }
 
 static zend_object_compat dbus_object_new_dbus_dict(zend_class_entry *class_type TSRMLS_DC)
@@ -764,14 +712,7 @@ static void dbus_object_free_storage_dbus_dict(void *object TSRMLS_DC)
 static inline zend_object_compat dbus_object_new_dbus_variant_ex(zend_class_entry *class_type, php_dbus_variant_obj **ptr TSRMLS_DC)
 {
 	php_dbus_variant_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus_variant);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_variant);
 }
 
 static zend_object_compat dbus_object_new_dbus_variant(zend_class_entry *class_type TSRMLS_DC)
@@ -794,14 +735,7 @@ static void dbus_object_free_storage_dbus_variant(void *object TSRMLS_DC)
 static inline zend_object_compat dbus_object_new_dbus_set_ex(zend_class_entry *class_type, php_dbus_set_obj **ptr TSRMLS_DC)
 {
 	php_dbus_set_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus_set);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_set);
 }
 
 static zend_object_compat dbus_object_new_dbus_set(zend_class_entry *class_type TSRMLS_DC)
@@ -833,14 +767,7 @@ static void dbus_object_free_storage_dbus_set(void *object TSRMLS_DC)
 static inline zend_object_compat dbus_object_new_dbus_struct_ex(zend_class_entry *class_type, php_dbus_struct_obj **ptr TSRMLS_DC)
 {
 	php_dbus_struct_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus_struct);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_struct);
 }
 
 static zend_object_compat dbus_object_new_dbus_struct(zend_class_entry *class_type TSRMLS_DC)
@@ -860,14 +787,7 @@ static void dbus_object_free_storage_dbus_struct(void *object TSRMLS_DC)
 static inline zend_object_compat dbus_object_new_dbus_object_path_ex(zend_class_entry *class_type, php_dbus_object_path_obj **ptr TSRMLS_DC)
 {
 	php_dbus_object_path_obj *intern;
-	zval *tmp;
-
-	DBUS_ZEND_OBJECT_ALLOC(intern, class_type);
-
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	INIT_OBJ_PROP;
-
-	COMPAT_RETURN_OBJ_INIT(intern, dbus_object_path);
+	DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_object_path);
 }
 
 static zend_object_compat dbus_object_new_dbus_object_path(zend_class_entry *class_type TSRMLS_DC)
@@ -887,14 +807,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 	static inline zend_object_compat dbus_object_new_dbus_##t##_ex(zend_class_entry *class_type, php_dbus_##t##_obj **ptr TSRMLS_DC) \
 	{ \
 		php_dbus_##t##_obj *intern; \
-		zval *tmp; \
- \
-		DBUS_ZEND_OBJECT_ALLOC(intern, class_type); \
-		 \
-		zend_object_std_init(&intern->std, class_type TSRMLS_CC); \
-		INIT_OBJ_PROP; \
-         \
-        COMPAT_RETURN_OBJ_INIT(intern, dbus_##t); \
+		DBUS_ZEND_OBJECT_INIT_RETURN(intern, class_type, dbus_##t); \
 	} \
  \
 	static zend_object_compat dbus_object_new_dbus_##t(zend_class_entry *class_type TSRMLS_DC) \
