@@ -103,6 +103,9 @@ typedef zend_object* zend_object_compat;
         zend_object std; \
     }
 
+# define DBUS_ZEND_GET_ZVAL_OBJECT(_zval, _objPtr, _objType) \
+    _objPtr = (_objType *) ((char *) Z_OBJ_P(_zval) - XtOffsetOf(_objType, std))
+
 #else
 typedef zend_object_value zend_object_compat;
 
@@ -151,6 +154,9 @@ typedef zend_object_value zend_object_compat;
 
 # define DBUS_ZEND_OBJ_STRUCT_DECL_END() \
     } \
+
+# define DBUS_ZEND_GET_ZVAL_OBJECT(_zval, _objPtr, _objType) \
+    _objPtr = (_objType *) zend_object_store_get_object(_zval TSRMLS_CC)
 
 #endif
 
