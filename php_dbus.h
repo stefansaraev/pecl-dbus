@@ -85,15 +85,23 @@ typedef zend_object* zend_object_compat;
     } while(0)
 
 # define DBUS_ZVAL_STRING(zv, str, af) \
-  do { \
-      ZVAL_STRING(zv, str); \
-      if (0 == af) { \
-        efree(str); \
-      } \
-  } while(0)
+    do { \
+        ZVAL_STRING(zv, str); \
+            if (0 == af) { \
+            efree(str); \
+        } \
+    } while(0)
 
 # define DBUS_ZEND_HASH_UPDATE(ht, key, zv) \
   zend_hash_update(ht, zend_string_init(key, sizeof(key)-1, 0), zv)
+
+# define DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(_type) \
+    typedef struct _##_type _type; \
+    struct _##_type {
+
+# define DBUS_ZEND_OBJ_STRUCT_DECL_END() \
+        zend_object std; \
+    }
 
 #else
 typedef zend_object_value zend_object_compat;
@@ -132,8 +140,18 @@ typedef zend_object_value zend_object_compat;
     } while(0)
 
 # define DBUS_ZVAL_STRING(zv, str, af) ZVAL_STRING(zv, str, af)
+
 # define DBUS_ZEND_HASH_UPDATE(ht, key, zv) \
   zend_hash_update(ht, key, strlen(key), (void*)zv, sizeof(zval *), NULL)
+
+# define DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(_type) \
+    typedef struct _##_type _type; \
+    struct _##_type { \
+        zend_object std;
+
+# define DBUS_ZEND_OBJ_STRUCT_DECL_END() \
+    } \
+
 #endif
 
 extern zend_module_entry dbus_module_entry;
