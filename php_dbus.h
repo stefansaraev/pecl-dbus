@@ -33,6 +33,10 @@
 # define PHP_FE_END {NULL, NULL, NULL}
 #endif
 
+#ifndef ZEND_MOD_END
+# define ZEND_MOD_END {NULL, NULL, NULL}
+#endif
+
 #if PHP_MINOR_VERSION > 3 || PHP_MAJOR_VERSION >= 7
 # define DBUS_ZEND_OBJECT_PROPERTIES_INIT(_objPtr, _ce) \
     object_properties_init(&_objPtr->std, _ce); \
@@ -80,6 +84,17 @@ typedef zend_object* zend_object_compat;
         return &_objPtr->std; \
     } while(0)
 
+# define DBUS_ZVAL_STRING(zv, str, af) \
+  do { \
+      ZVAL_STRING(zv, str); \
+      if (0 == af) { \
+        efree(str); \
+      } \
+  } while(0)
+
+# define DBUS_ZEND_HASH_UPDATE(ht, key, zv) \
+  zend_hash_update(ht, zend_string_init(key, sizeof(key)-1, 0), zv)
+
 #else
 typedef zend_object_value zend_object_compat;
 
@@ -116,6 +131,9 @@ typedef zend_object_value zend_object_compat;
         return retval; \
     } while(0)
 
+# define DBUS_ZVAL_STRING(zv, str, af) ZVAL_STRING(zv, str, af)
+# define DBUS_ZEND_HASH_UPDATE(ht, key, zv) \
+  zend_hash_update(ht, key, strlen(key), (void*)zv, sizeof(zval *), NULL)
 #endif
 
 extern zend_module_entry dbus_module_entry;
