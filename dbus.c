@@ -247,30 +247,6 @@ struct _php_dbus_data_array {
 	int size;
 };
 
-#define DBUS_SET_CONTEXT \
-	zval *object; \
-	object = getThis(); \
-   
-#define DBUS_FETCH_OBJECT	\
-	php_date_obj *obj;	\
-	DBUS_SET_CONTEXT; \
-	if (object) {	\
-		if (zend_parse_parameters_none() == FAILURE) {	\
-			return;	\
-		}	\
-	} else {	\
-		if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, NULL, "O", &object, dbus_ce_dbus) == FAILURE) {	\
-			RETURN_FALSE;	\
-		}	\
-	}	\
-	obj = (php_dbus_obj *) zend_object_store_get_object(object TSRMLS_CC);	\
-
-#define DBUS_CHECK_INITIALIZED(member, class_name) \
-	if (!(member)) { \
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "The " #class_name " object has not been correctly initialized by its constructor"); \
-		RETURN_FALSE; \
-	}
-
 static void dbus_object_free_storage_dbus(void *object TSRMLS_DC);
 static void dbus_object_free_storage_dbus_object(void *object TSRMLS_DC);
 static void dbus_object_free_storage_dbus_signal(void *object TSRMLS_DC);
