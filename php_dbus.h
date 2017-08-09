@@ -146,8 +146,11 @@ typedef size_t str_size;
         zend_object std; \
     }
 
+# define DBUS_ZEND_ZOBJ_TO_OBJ(_zObj, _objType) \
+    (_objType *) ((char *) _zObj - XtOffsetOf(_objType, std))
+
 # define DBUS_ZEND_GET_ZVAL_OBJECT(_zval, _objPtr, _objType) \
-    _objPtr = (_objType *) ((char *) Z_OBJ_P(_zval) - XtOffsetOf(_objType, std))
+    _objPtr = DBUS_ZEND_ZOBJ_TO_OBJ(Z_OBJ_P(_zval), _objType)
 
 # define DBUS_ZEND_MAKE_STD_ZVAL(_zval) \
     { \
@@ -246,6 +249,9 @@ typedef int str_size;
 
 # define DBUS_ZEND_OBJ_STRUCT_DECL_END() \
     } \
+
+# define DBUS_ZEND_ZOBJ_TO_OBJ(_zObj, _objType) \
+    (_objType *) _zObj
 
 # define DBUS_ZEND_GET_ZVAL_OBJECT(_zval, _objPtr, _objType) \
     _objPtr = (_objType *) zend_object_store_get_object(_zval TSRMLS_CC)

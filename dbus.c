@@ -534,7 +534,7 @@ static int dbus_object_compare_dbus(zval *d1, zval *d2 TSRMLS_DC)
 
 static void dbus_object_free_storage_dbus(void *object TSRMLS_DC)
 {
-	php_dbus_obj *intern = (php_dbus_obj *)object;
+	php_dbus_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_obj);
 
 	if (intern->con) {
 		dbus_connection_unref(intern->con);
@@ -560,7 +560,7 @@ static zend_object_compat dbus_object_new_dbus_object(zend_class_entry *class_ty
 
 static void dbus_object_free_storage_dbus_object(void *object TSRMLS_DC)
 {
-	php_dbus_object_obj *intern = (php_dbus_object_obj *)object;
+	php_dbus_object_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_object_obj);
 
 	xmlFreeDoc(intern->introspect_xml_doc);
 	if (intern->destination) {
@@ -590,7 +590,7 @@ static zend_object_compat dbus_object_new_dbus_signal(zend_class_entry *class_ty
 
 static void dbus_object_free_storage_dbus_signal(void *object TSRMLS_DC)
 {
-	php_dbus_signal_obj *intern = (php_dbus_signal_obj *)object;
+	php_dbus_signal_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_signal_obj);
 
 	dbus_message_unref(intern->msg);
 
@@ -622,7 +622,7 @@ static zend_object_compat dbus_object_new_dbus_array(zend_class_entry *class_typ
 
 static void dbus_object_free_storage_dbus_array(void *object TSRMLS_DC)
 {
-	php_dbus_array_obj *intern = (php_dbus_array_obj *)object;
+	php_dbus_array_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_array_obj);
 
 	if (intern->signature) {
 		efree(intern->signature);
@@ -645,7 +645,7 @@ static zend_object_compat dbus_object_new_dbus_dict(zend_class_entry *class_type
 
 static void dbus_object_free_storage_dbus_dict(void *object TSRMLS_DC)
 {
-	php_dbus_dict_obj *intern = (php_dbus_dict_obj *)object;
+	php_dbus_dict_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_dict_obj);
 
 	if (intern->signature) {
 		efree(intern->signature);
@@ -668,7 +668,7 @@ static zend_object_compat dbus_object_new_dbus_variant(zend_class_entry *class_t
 
 static void dbus_object_free_storage_dbus_variant(void *object TSRMLS_DC)
 {
-	php_dbus_variant_obj *intern = (php_dbus_variant_obj *)object;
+	php_dbus_variant_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_variant_obj);
 
 	if (intern->signature) {
 		efree(intern->signature);
@@ -691,7 +691,7 @@ static zend_object_compat dbus_object_new_dbus_set(zend_class_entry *class_type 
 
 static void dbus_object_free_storage_dbus_set(void *object TSRMLS_DC)
 {
-	php_dbus_set_obj *intern = (php_dbus_set_obj *)object;
+	php_dbus_set_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_set_obj);
 
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	
@@ -727,7 +727,7 @@ static zend_object_compat dbus_object_new_dbus_struct(zend_class_entry *class_ty
 
 static void dbus_object_free_storage_dbus_struct(void *object TSRMLS_DC)
 {
-	php_dbus_struct_obj *intern = (php_dbus_struct_obj *)object;
+	php_dbus_struct_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_struct_obj);
 
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
@@ -747,7 +747,7 @@ static zend_object_compat dbus_object_new_dbus_object_path(zend_class_entry *cla
 
 static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 {
-	php_dbus_object_path_obj *intern = (php_dbus_object_path_obj *)object;
+	php_dbus_object_path_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_object_path_obj);
 
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
@@ -767,7 +767,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
  \
 	static void dbus_object_free_storage_dbus_##t(void *object TSRMLS_DC) \
 	{ \
-		php_dbus_##t##_obj *intern = (php_dbus_##t##_obj *)object; \
+		php_dbus_##t##_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_##t##_obj); \
  \
 		zend_object_std_dtor(&intern->std TSRMLS_CC); \
 		efree(object); \
@@ -1612,22 +1612,28 @@ static int dbus_append_var(zval **val, php_dbus_data_array *data_array, DBusMess
 			obj = (zend_object *) zend_object_store_get_object(*val TSRMLS_CC);
 #endif
 			if (obj->ce == dbus_ce_dbus_array) {
-				dbus_append_var_array(data_array, iter, (php_dbus_array_obj*) obj TSRMLS_CC);
+				dbus_append_var_array(data_array, iter,
+					DBUS_ZEND_ZOBJ_TO_OBJ(obj, php_dbus_array_obj) TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_dict) {
-				dbus_append_var_dict(data_array, iter, (php_dbus_dict_obj*) obj TSRMLS_CC);
+				dbus_append_var_dict(data_array, iter,
+					DBUS_ZEND_ZOBJ_TO_OBJ(obj, php_dbus_dict_obj) TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_variant) {
-				dbus_append_var_variant(data_array, iter, (php_dbus_variant_obj*) obj TSRMLS_CC);
+				dbus_append_var_variant(data_array, iter,
+					DBUS_ZEND_ZOBJ_TO_OBJ(obj, php_dbus_variant_obj) TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_set) {
-				dbus_append_var_set(data_array, iter, (php_dbus_set_obj*) obj TSRMLS_CC);
+				dbus_append_var_set(data_array, iter,
+					DBUS_ZEND_ZOBJ_TO_OBJ(obj, php_dbus_set_obj) TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_struct) {
-				dbus_append_var_struct(data_array, iter, (php_dbus_struct_obj*) obj TSRMLS_CC);
+				dbus_append_var_struct(data_array, iter,
+					DBUS_ZEND_ZOBJ_TO_OBJ(obj, php_dbus_struct_obj) TSRMLS_CC);
 			}
 			if (obj->ce == dbus_ce_dbus_object_path) {
-				dbus_append_var_object_path(data_array, iter, (php_dbus_object_path_obj*) obj TSRMLS_CC);
+				dbus_append_var_object_path(data_array, iter,
+					DBUS_ZEND_ZOBJ_TO_OBJ(obj, php_dbus_object_path_obj) TSRMLS_CC);
 			}
 			PHP_DBUS_MARSHAL_TO_DBUS_CASE(byte);
 			PHP_DBUS_MARSHAL_TO_DBUS_CASE(bool);
