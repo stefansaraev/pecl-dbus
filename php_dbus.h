@@ -53,6 +53,7 @@
 
 #if PHP_MAJOR_VERSION >= 7
 typedef zend_object* zend_object_compat;
+typedef size_t str_size;
 
 # define DBUS_ZEND_REGISTER_CLASS(_name, _parent) \
     do { \
@@ -92,8 +93,50 @@ typedef zend_object* zend_object_compat;
         } \
     } while(0)
 
-# define DBUS_ZEND_HASH_UPDATE(ht, key, zv) \
-  zend_hash_update(ht, zend_string_init(key, sizeof(key)-1, 0), zv)
+# define DBUS_ZEND_HASH_ADD_PTR(_ht, _key, _ptr, _ptrSz) \
+    zend_hash_str_add_ptr(_ht, _key, strlen(_key), _ptr)
+
+# define DBUS_ZEND_HASH_UPDATE(_ht, _key, _zval) \
+    zend_hash_str_update(_ht, _key, strlen(_key), *_zval)
+
+# define DBUS_ZEND_HASH_FIND_PTR(_ht, _key, _ptr) \
+    _ptr = zend_hash_str_find_ptr(_ht, _key, strlen(_key))
+
+# define DBUS_ZEND_HASH_FIND_PTR_CHECK(_ht, _key, _ptr) \
+    (DBUS_ZEND_HASH_FIND_PTR(_ht, _key, _ptr)) != NULL
+
+# define DBUS_ZEND_HASH_EXISTS(_ht, _key) \
+    zend_hash_str_exists(_ht, _key, strlen(_key))
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA(_ht, _zvalPtr) \
+    _zvalPtr = zend_hash_get_current_data(_ht)
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_CHECK(_ht, _zvalPtr) \
+    (DBUS_ZEND_HASH_GET_CURRENT_DATA(_ht, _zvalPtr)) != NULL
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_EX(_ht, _zvalPtr, _pos) \
+    _zvalPtr = zend_hash_get_current_data_ex(_ht, &_pos)
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_CHECK_EX(_ht, _zvalPtr, _pos) \
+    (DBUS_ZEND_HASH_GET_CURRENT_DATA_EX(_ht, _zvalPtr, _pos)) != NULL
+
+# define DBUS_ZEND_HASH_GET_CURRENT_KEY_INFO(_ht, _idx, _info) \
+    do { \
+        zend_string *tmp_info = NULL; \
+        _info.type = zend_hash_get_current_key(_ht, &tmp_info, &_idx); \
+        if (tmp_info) { \
+            _info.name = ZSTR_VAL(tmp_info); \
+            _info.length = ZSTR_LEN(tmp_info); \
+        } \
+    } while(0)
+
+# define DBUS_ZEND_HASH_DESTROY_CHECK(_ht) \
+    do { \
+        if (_ht.u.flags) { \
+            zend_hash_destroy(&_ht); \
+            _ht.u.flags = 0; \
+        } \
+    } while (0)
 
 # define DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(_type) \
     typedef struct _##_type _type; \
@@ -106,8 +149,22 @@ typedef zend_object* zend_object_compat;
 # define DBUS_ZEND_GET_ZVAL_OBJECT(_zval, _objPtr, _objType) \
     _objPtr = (_objType *) ((char *) Z_OBJ_P(_zval) - XtOffsetOf(_objType, std))
 
+# define DBUS_ZEND_MAKE_STD_ZVAL(_zval) \
+    { \
+        zval tmp; \
+        _zval = &tmp; \
+    }
+
+# define DBUS_ZEND_ALLOC_ZVAL(_zval) DBUS_ZEND_MAKE_STD_ZVAL(_zval)
+
+# define DBUS_ZEND_ZVAL_TYPE_P(_zval) Z_TYPE_INFO_P(_zval)
+
+# define DBUS_ZEND_ADDREF_P(_zval) \
+    if (Z_REFCOUNTED_P(_zval)) Z_ADDREF_P(_zval)
+
 #else
 typedef zend_object_value zend_object_compat;
+typedef int str_size;
 
 # define DBUS_ZEND_REGISTER_CLASS(_name, _parent) \
     do { \
@@ -144,8 +201,43 @@ typedef zend_object_value zend_object_compat;
 
 # define DBUS_ZVAL_STRING(zv, str, af) ZVAL_STRING(zv, str, af)
 
-# define DBUS_ZEND_HASH_UPDATE(ht, key, zv) \
-  zend_hash_update(ht, key, strlen(key), (void*)zv, sizeof(zval *), NULL)
+# define DBUS_ZEND_HASH_ADD_PTR(_ht, _key, _ptr, _ptrSz) \
+    zend_hash_add(_ht, _key, strlen(key) + 1, (void *) _ptr, _ptrSz, NULL);
+
+# define DBUS_ZEND_HASH_UPDATE(_ht, _key, _zval) \
+  zend_hash_update(_ht, _key, strlen(_key) + 1, (void *) _zval, sizeof(zval *), NULL)
+
+# define DBUS_ZEND_HASH_FIND_PTR(_ht, _key, _ptr) \
+    _ptr = dbus_zend_hash_find_ptr(_ht, _key, strlen(_key) + 1)
+
+# define DBUS_ZEND_HASH_FIND_PTR_CHECK(_ht, _key, _ptr) \
+    (DBUS_ZEND_HASH_FIND_PTR(_ht, _key, _ptr)) != NULL
+
+# define DBUS_ZEND_HASH_EXISTS(_ht, _key) \
+     zend_hash_exists(_ht, _key, strlen(_key) + 1)
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA(_ht, _zvalPtr) \
+    _zvalPtr = dbus_zend_hash_get_current_data(_ht)
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_CHECK(_ht, _zvalPtr) \
+    (DBUS_ZEND_HASH_GET_CURRENT_DATA(_ht, _zvalPtr)) != NULL
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_EX(_ht, _zvalPtr, _pos) \
+    _zvalPtr = dbus_zend_hash_get_current_data_ex(_ht, &_pos)
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_CHECK_EX(_ht, _zvalPtr, _pos) \
+    (DBUS_ZEND_HASH_GET_CURRENT_DATA_EX(_ht, _zvalPtr, _pos)) != NULL
+
+# define DBUS_ZEND_HASH_GET_CURRENT_KEY_INFO(_ht, _idx, _info) \
+    _info.type = zend_hash_get_current_key_ex(_ht, &_info.name, &_info.length, &_idx, 0, NULL)
+
+# define DBUS_ZEND_HASH_DESTROY_CHECK(_ht) \
+    do { \
+        if (_ht.arBuckets) { \
+            zend_hash_destroy(&_ht); \
+            _ht.arBuckets = NULL; \
+        } \
+    } while (0)
 
 # define DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(_type) \
     typedef struct _##_type _type; \
@@ -158,7 +250,57 @@ typedef zend_object_value zend_object_compat;
 # define DBUS_ZEND_GET_ZVAL_OBJECT(_zval, _objPtr, _objType) \
     _objPtr = (_objType *) zend_object_store_get_object(_zval TSRMLS_CC)
 
+# define DBUS_ZEND_MAKE_STD_ZVAL(_zval) MAKE_STD_ZVAL(_zval)
+
+# define DBUS_ZEND_ALLOC_ZVAL(_zval) ALLOC_ZVAL(_zval)
+
+# define DBUS_ZEND_ZVAL_TYPE_P(_zval) Z_TYPE_P(_zval)
+
+# define DBUS_ZEND_ADDREF_P(_zval) Z_ADDREF_P(_zval)
+
+/* {{{ PHP5 zend_hash_* compat functions
+   In PHP 7.x the zend_hash functions return zval pointers whereas in PHP5.x
+   they take an address to a double pointer. To keep compatibiliy macros simple
+   those methods were added to take care of the difference which would be
+   otherwise hard to handle with macros alone.
+ */
+static inline zval *
+dbus_zend_hash_get_current_data_ex(HashTable *ht, HashPosition *pos)
+{
+    zval **entry = NULL;
+
+    if (zend_hash_get_current_data_ex(ht, (void **) &entry, pos) == SUCCESS)
+        return *entry;
+
+    return NULL;
+}
+
+static inline zval *
+dbus_zend_hash_get_current_data(HashTable *ht)
+{
+    return dbus_zend_hash_get_current_data_ex(ht, NULL);
+}
+
+static inline void *
+dbus_zend_hash_find_ptr(HashTable *ht, const char *key, size_t key_len)
+{
+    void *entry = NULL;
+
+    if (zend_hash_find(ht, key, key_len, (void **) &entry) == SUCCESS)
+        return entry;
+
+    return NULL;
+}
+/* }}} */
+
 #endif
+
+
+typedef struct _dbus_zend_hash_key_info {
+    char *name;
+    unsigned int length;
+    unsigned int type;
+} dbus_zend_hash_key_info;
 
 extern zend_module_entry dbus_module_entry;
 #define phpext_dbus_ptr &dbus_module_entry
