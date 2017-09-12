@@ -85,6 +85,11 @@ typedef size_t str_size;
         return &_objPtr->std; \
     } while(0)
 
+# define DBUS_ZEND_OBJECT_DESTROY(_objPtr) \
+    do { \
+        zend_object_std_dtor(&_objPtr->std); \
+    } while(0)
+
 # define DBUS_ZVAL_STRING(zv, str, af) \
     do { \
         ZVAL_STRING(zv, str); \
@@ -158,12 +163,15 @@ typedef size_t str_size;
         _zval = &tmp; \
     }
 
-# define DBUS_ZEND_ALLOC_ZVAL(_zval) DBUS_ZEND_MAKE_STD_ZVAL(_zval)
+# define DBUS_ZEND_ALLOC_ZVAL(_zvalPtr) \
+    _zvalPtr = emalloc(sizeof(zval)); \
+    DBUS_ZEND_INIT_ZVAL(_zvalPtr)
 
 # define DBUS_ZEND_ZVAL_TYPE_P(_zval) Z_TYPE_INFO_P(_zval)
 
-# define DBUS_ZEND_ADDREF_P(_zval) \
-    if (Z_REFCOUNTED_P(_zval)) Z_ADDREF_P(_zval)
+# define DBUS_ZEND_ADDREF_P(_zval) Z_TRY_ADDREF_P(_zval)
+
+# define DBUS_ZEND_INIT_ZVAL(_zvalPtr) ZVAL_NULL(_zvalPtr)
 
 #else
 typedef zend_object_value zend_object_compat;
@@ -201,6 +209,12 @@ typedef int str_size;
         DBUS_ZEND_OBJECT_SET_HANDLERS(_objPtr, _objType); \
         return retval; \
     } while(0)
+
+# define DBUS_ZEND_OBJECT_DESTROY(_objPtr) \
+    do { \
+        zend_object_std_dtor(&_objPtr->std); \
+        efree(_objPtr); \
+    } while (0)
 
 # define DBUS_ZVAL_STRING(zv, str, af) ZVAL_STRING(zv, str, af)
 
@@ -258,11 +272,15 @@ typedef int str_size;
 
 # define DBUS_ZEND_MAKE_STD_ZVAL(_zval) MAKE_STD_ZVAL(_zval)
 
-# define DBUS_ZEND_ALLOC_ZVAL(_zval) ALLOC_ZVAL(_zval)
+# define DBUS_ZEND_ALLOC_ZVAL(_zvalPtr) \
+    ALLOC_ZVAL(_zvalPtr); \
+    DBUS_ZEND_INIT_ZVAL(_zvalPtr)
 
 # define DBUS_ZEND_ZVAL_TYPE_P(_zval) Z_TYPE_P(_zval)
 
 # define DBUS_ZEND_ADDREF_P(_zval) Z_ADDREF_P(_zval)
+
+# define DBUS_ZEND_INIT_ZVAL(_zvalPtr) INIT_PZVAL(_zvalPtr)
 
 /* {{{ PHP5 zend_hash_* compat functions
    In PHP 7.x the zend_hash functions return zval pointers whereas in PHP5.x
