@@ -1522,10 +1522,19 @@ PHP_DBUS_APPEND_TYPE_FUNC(uint32, UINT32);
 PHP_DBUS_APPEND_TYPE_FUNC(int64, INT64);
 PHP_DBUS_APPEND_TYPE_FUNC(uint64, UINT64);
 
+#ifdef PHP_7
+#define PHP_DBUS_MARSHAL_TO_DBUS_CASE(t) \
+	if (obj->ce == dbus_ce_dbus_##t) { \
+		php_dbus_##t##_obj *_val = \
+			DBUS_ZEND_ZOBJ_TO_OBJ(obj, php_dbus_##t##_obj); \
+		dbus_append_var_##t(iter, _val->data); \
+	}
+#else
 #define PHP_DBUS_MARSHAL_TO_DBUS_CASE(t) \
 	if (obj->ce == dbus_ce_dbus_##t) { \
 		dbus_append_var_##t(iter, ((php_dbus_##t##_obj*) obj)->data); \
 	}
+#endif
 
 static int dbus_append_var(zval **val, DBusMessageIter *iter, char *type_hint TSRMLS_DC)
 {
