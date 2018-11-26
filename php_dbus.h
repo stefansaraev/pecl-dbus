@@ -35,9 +35,6 @@
         rebuild_object_properties(&_objPtr->std); \
     };
 
-typedef zend_object* zend_object_compat;
-typedef size_t str_size;
-
 # define DBUS_ZEND_REGISTER_CLASS(_name, _parent) \
     do { \
         dbus_ce_##_name = zend_register_internal_class_ex(&ce_##_name, _parent); \
