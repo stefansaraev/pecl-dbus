@@ -1,6 +1,6 @@
 <?php
 $d = new Dbus( Dbus::BUS_SYSTEM, true );
-$n = $d->createProxy( "org.freedesktop.NetworkManagerSystemSettings", "/org/freedesktop/NetworkManagerSettings", "org.freedesktop.NetworkManagerSettings");
+$n = $d->createProxy( "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager/Settings", "org.freedesktop.NetworkManager.Settings");
 $args = new DBusDict( DBus::STRUCT,
 	array(
 		'connection' => new DBusDict( DBus::VARIANT,

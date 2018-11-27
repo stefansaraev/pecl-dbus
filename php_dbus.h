@@ -27,7 +27,138 @@
 
 #include "Zend/zend_hash.h"
 
-#define PHP_DBUS_VERSION "0.1.0"
+#define PHP_DBUS_VERSION "0.2.0"
+
+# define DBUS_ZEND_OBJECT_PROPERTIES_INIT(_objPtr, _ce) \
+    object_properties_init(&_objPtr->std, _ce); \
+    if (!_objPtr->std.properties) { \
+        rebuild_object_properties(&_objPtr->std); \
+    };
+
+# define DBUS_ZEND_REGISTER_CLASS(_name, _parent) \
+    do { \
+        dbus_ce_##_name = zend_register_internal_class_ex(&ce_##_name, _parent); \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_ALLOC(_objPtr, _ce) \
+    do { \
+        _objPtr = ecalloc(1, sizeof(*_objPtr) + zend_object_properties_size(_ce)); \
+        if (ptr) { \
+            *ptr = _objPtr; \
+        } \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_SET_HANDLERS(_objPtr, _objType) \
+    do { \
+        dbus_object_handlers_##_objType.offset = XtOffsetOf(php_##_objType##_obj, std); \
+        dbus_object_handlers_##_objType.free_obj = \
+            (zend_object_free_obj_t) dbus_object_free_storage_##_objType; \
+        _objPtr->std.handlers = &dbus_object_handlers_##_objType; \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_INIT_RETURN(_objPtr, _ce, _objType) \
+    do { \
+        DBUS_ZEND_OBJECT_ALLOC(_objPtr, _ce); \
+        zend_object_std_init(&_objPtr->std, _ce); \
+        DBUS_ZEND_OBJECT_PROPERTIES_INIT(_objPtr, _ce); \
+        DBUS_ZEND_OBJECT_SET_HANDLERS(_objPtr, _objType); \
+        return &_objPtr->std; \
+    } while(0)
+
+# define DBUS_ZEND_OBJECT_DESTROY(_objPtr) \
+    do { \
+        zend_object_std_dtor(&_objPtr->std); \
+    } while(0)
+
+# define DBUS_ZVAL_STRING(zv, str, af) \
+    do { \
+        ZVAL_STRING(zv, str); \
+            if (0 == af) { \
+            efree(str); \
+        } \
+    } while(0)
+
+# define DBUS_ZEND_HASH_ADD_PTR(_ht, _key, _ptr, _ptrSz) \
+    zend_hash_str_add_ptr(_ht, _key, strlen(_key), _ptr)
+
+# define DBUS_ZEND_HASH_UPDATE(_ht, _key, _zval) \
+    zend_hash_str_update(_ht, _key, strlen(_key), *_zval)
+
+# define DBUS_ZEND_HASH_FIND_PTR(_ht, _key, _ptr) \
+    _ptr = zend_hash_str_find_ptr(_ht, _key, strlen(_key))
+
+# define DBUS_ZEND_HASH_FIND_PTR_CHECK(_ht, _key, _ptr) \
+    (DBUS_ZEND_HASH_FIND_PTR(_ht, _key, _ptr)) != NULL
+
+# define DBUS_ZEND_HASH_EXISTS(_ht, _key) \
+    zend_hash_str_exists(_ht, _key, strlen(_key))
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA(_ht, _zvalPtr) \
+    _zvalPtr = zend_hash_get_current_data(_ht)
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_CHECK(_ht, _zvalPtr) \
+    (DBUS_ZEND_HASH_GET_CURRENT_DATA(_ht, _zvalPtr)) != NULL
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_EX(_ht, _zvalPtr, _pos) \
+    _zvalPtr = zend_hash_get_current_data_ex(_ht, &_pos)
+
+# define DBUS_ZEND_HASH_GET_CURRENT_DATA_CHECK_EX(_ht, _zvalPtr, _pos) \
+    (DBUS_ZEND_HASH_GET_CURRENT_DATA_EX(_ht, _zvalPtr, _pos)) != NULL
+
+# define DBUS_ZEND_HASH_GET_CURRENT_KEY_INFO(_ht, _idx, _info) \
+    do { \
+        zend_string *tmp_info = NULL; \
+        _info.type = zend_hash_get_current_key(_ht, &tmp_info, &_idx); \
+        if (tmp_info) { \
+            _info.name = ZSTR_VAL(tmp_info); \
+            _info.length = ZSTR_LEN(tmp_info); \
+        } \
+    } while(0)
+
+# define DBUS_ZEND_HASH_DESTROY_CHECK(_ht) \
+    do { \
+        if (_ht.u.flags) { \
+            zend_hash_destroy(&_ht); \
+            _ht.u.flags = 0; \
+        } \
+    } while (0)
+
+# define DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(_type) \
+    typedef struct _##_type _type; \
+    struct _##_type {
+
+# define DBUS_ZEND_OBJ_STRUCT_DECL_END() \
+        zend_object std; \
+    }
+
+# define DBUS_ZEND_ZOBJ_TO_OBJ(_zObj, _objType) \
+    (_objType *) ((char *) _zObj - XtOffsetOf(_objType, std))
+
+# define DBUS_ZEND_GET_ZVAL_OBJECT(_zval, _objPtr, _objType) \
+    _objPtr = DBUS_ZEND_ZOBJ_TO_OBJ(Z_OBJ_P(_zval), _objType)
+
+# define DBUS_ZEND_MAKE_STD_ZVAL(_zval) \
+    { \
+        zval tmp; \
+        _zval = &tmp; \
+    }
+
+# define DBUS_ZEND_ALLOC_ZVAL(_zvalPtr) \
+    _zvalPtr = emalloc(sizeof(zval)); \
+    DBUS_ZEND_INIT_ZVAL(_zvalPtr)
+
+# define DBUS_ZEND_ZVAL_TYPE_P(_zval) Z_TYPE_INFO_P(_zval)
+
+# define DBUS_ZEND_ADDREF_P(_zval) Z_TRY_ADDREF_P(_zval)
+
+# define DBUS_ZEND_INIT_ZVAL(_zvalPtr) ZVAL_NULL(_zvalPtr)
+
+
+typedef struct _dbus_zend_hash_key_info {
+    char *name;
+    unsigned int length;
+    unsigned int type;
+} dbus_zend_hash_key_info;
 
 extern zend_module_entry dbus_module_entry;
 #define phpext_dbus_ptr &dbus_module_entry
