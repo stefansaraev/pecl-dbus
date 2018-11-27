@@ -35,11 +35,6 @@
         rebuild_object_properties(&_objPtr->std); \
     };
 
-# define DBUS_ZEND_REGISTER_CLASS(_name, _parent) \
-    do { \
-        dbus_ce_##_name = zend_register_internal_class_ex(&ce_##_name, _parent); \
-    } while(0)
-
 # define DBUS_ZEND_OBJECT_ALLOC(_objPtr, _ce) \
     do { \
         _objPtr = ecalloc(1, sizeof(*_objPtr) + zend_object_properties_size(_ce)); \
