@@ -123,14 +123,6 @@
         } \
     } while (0)
 
-# define DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(_type) \
-    typedef struct _##_type _type; \
-    struct _##_type {
-
-# define DBUS_ZEND_OBJ_STRUCT_DECL_END() \
-        zend_object std; \
-    }
-
 # define DBUS_ZEND_ZOBJ_TO_OBJ(_zObj, _objType) \
     (_objType *) ((char *) _zObj - XtOffsetOf(_objType, std))
 

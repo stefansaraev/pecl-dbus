@@ -163,66 +163,76 @@ static zend_object_handlers dbus_object_handlers_dbus_struct, dbus_object_handle
 #define PHP_DBUS_SIGNAL_IN  1
 #define PHP_DBUS_SIGNAL_OUT 2
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_obj)
+typedef struct _php_dbus_obj {
 	DBusConnection *con;
 	int             useIntrospection;
 	HashTable       objects; /* A hash with all the registered objects that can be called */
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	zend_object     std;
+} php_dbus_obj;
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_object_obj)
+typedef struct _php_dbus_object_obj {
 	php_dbus_obj    *dbus;
 	char            *destination;
 	char            *path;
 	char            *interface;
 	xmlDocPtr        introspect_xml_doc;
-    xmlNode         *introspect_xml;
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	xmlNode         *introspect_xml;
+	zend_object     std;
+} php_dbus_object_obj;
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_signal_obj)
+typedef struct _php_dbus_signal_obj {
 	php_dbus_obj    *dbus;
 	DBusMessage     *msg;
 	char            *object;
 	char            *interface;
 	char            *signal;
 	int              direction;
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	zend_object     std;
+} php_dbus_signal_obj;
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_array_obj)
+typedef struct _php_dbus_array_obj {
 	long             type;
 	char            *signature;
 	zval            *elements;
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	zend_object     std;
+} php_dbus_array_obj;
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_dict_obj)
+typedef struct _php_dbus_dict_obj {
 	long             type;
 	char            *signature;
 	zval            *elements;
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	zend_object     std;
+} php_dbus_dict_obj;
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_variant_obj)
+typedef struct _php_dbus_variant_obj {
 	zval            *data;
 	char            *signature;
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	zend_object     std;
+} php_dbus_variant_obj;
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_set_obj)
+typedef struct _php_dbus_set_obj {
 	int              element_count;
 	zval           **elements;
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	zend_object     std;
+} php_dbus_set_obj;
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_struct_obj)
+typedef struct _php_dbus_struct_obj {
 	zval            *elements;
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	zend_object     std;
+} php_dbus_struct_obj;
 
-DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_object_path_obj)
+typedef struct _php_dbus_object_path_obj {
 	char            *path;
-DBUS_ZEND_OBJ_STRUCT_DECL_END();
+	zend_object     std;
+} php_dbus_object_path_obj;
 
 #define PHP_DBUS_SETUP_TYPE_OBJ(t,dt) \
 	zend_class_entry *dbus_ce_dbus_##t; \
 	static zend_object_handlers dbus_object_handlers_dbus_##t; \
-	DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(php_dbus_##t##_obj) \
+	typedef struct _php_dbus_##t##_obj { \
 		dt               data; \
-	DBUS_ZEND_OBJ_STRUCT_DECL_END();
+		zend_object      std; \
+	} php_dbus_##t##_obj;
 
 PHP_DBUS_SETUP_TYPE_OBJ(byte,unsigned char);
 PHP_DBUS_SETUP_TYPE_OBJ(bool,dbus_bool_t);
