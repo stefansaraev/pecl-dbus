@@ -531,7 +531,7 @@ static void dbus_object_free_storage_dbus(void *object TSRMLS_DC)
 	}
 
 	DBUS_ZEND_HASH_DESTROY_CHECK(intern->objects);
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 /* DBUS Object*/
@@ -560,7 +560,7 @@ static void dbus_object_free_storage_dbus_object(void *object TSRMLS_DC)
 	if (intern->interface) {
 		efree(intern->interface);
 	}
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 /* DBUS Signal */
@@ -590,7 +590,7 @@ static void dbus_object_free_storage_dbus_signal(void *object TSRMLS_DC)
 	if (intern->object) {
 		efree(intern->object);
 	}
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 /* DBUS Array*/
@@ -613,7 +613,7 @@ static void dbus_object_free_storage_dbus_array(void *object TSRMLS_DC)
 		efree(intern->signature);
 	}
 
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 /* DBUS DICT */
@@ -636,7 +636,7 @@ static void dbus_object_free_storage_dbus_dict(void *object TSRMLS_DC)
 		efree(intern->signature);
 	}
 
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 /* DBUS VARIANT */
@@ -659,7 +659,7 @@ static void dbus_object_free_storage_dbus_variant(void *object TSRMLS_DC)
 		efree(intern->signature);
 	}
 
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 /* DBUS SET */
@@ -689,7 +689,7 @@ static void dbus_object_free_storage_dbus_set(void *object TSRMLS_DC)
 		efree(intern->elements);
 	}
 
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 /* DBUS Struct*/
@@ -708,7 +708,7 @@ static void dbus_object_free_storage_dbus_struct(void *object TSRMLS_DC)
 {
 	php_dbus_struct_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_struct_obj);
 
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 /* DBUS Object Path*/
@@ -727,7 +727,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 {
 	php_dbus_object_path_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_object_path_obj);
 
-	DBUS_ZEND_OBJECT_DESTROY(intern);
+	zend_object_std_dtor(&intern->std);
 }
 
 #define PHP_DBUS_DEFINE_TYPE_OBJ_FUNCS(t,pt,pf) \
@@ -746,7 +746,7 @@ static void dbus_object_free_storage_dbus_object_path(void *object TSRMLS_DC)
 	{ \
 		php_dbus_##t##_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(object, php_dbus_##t##_obj); \
  \
-		DBUS_ZEND_OBJECT_DESTROY(intern); \
+		zend_object_std_dtor(&intern->std); \
 	} \
  \
 	static HashTable *dbus_##t##_get_properties(zval *object TSRMLS_DC) \

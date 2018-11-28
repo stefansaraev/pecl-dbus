@@ -60,11 +60,6 @@
         return &_objPtr->std; \
     } while(0)
 
-# define DBUS_ZEND_OBJECT_DESTROY(_objPtr) \
-    do { \
-        zend_object_std_dtor(&_objPtr->std); \
-    } while(0)
-
 # define DBUS_ZVAL_STRING(zv, str, af) \
     do { \
         ZVAL_STRING(zv, str); \
