@@ -35,11 +35,6 @@
         rebuild_object_properties(&_objPtr->std); \
     };
 
-# define DBUS_ZEND_REGISTER_CLASS(_name, _parent) \
-    do { \
-        dbus_ce_##_name = zend_register_internal_class_ex(&ce_##_name, _parent); \
-    } while(0)
-
 # define DBUS_ZEND_OBJECT_ALLOC(_objPtr, _ce) \
     do { \
         _objPtr = ecalloc(1, sizeof(*_objPtr) + zend_object_properties_size(_ce)); \
@@ -63,11 +58,6 @@
         DBUS_ZEND_OBJECT_PROPERTIES_INIT(_objPtr, _ce); \
         DBUS_ZEND_OBJECT_SET_HANDLERS(_objPtr, _objType); \
         return &_objPtr->std; \
-    } while(0)
-
-# define DBUS_ZEND_OBJECT_DESTROY(_objPtr) \
-    do { \
-        zend_object_std_dtor(&_objPtr->std); \
     } while(0)
 
 # define DBUS_ZVAL_STRING(zv, str, af) \
@@ -122,14 +112,6 @@
             _ht.u.flags = 0; \
         } \
     } while (0)
-
-# define DBUS_ZEND_OBJ_STRUCT_DECL_BEGIN(_type) \
-    typedef struct _##_type _type; \
-    struct _##_type {
-
-# define DBUS_ZEND_OBJ_STRUCT_DECL_END() \
-        zend_object std; \
-    }
 
 # define DBUS_ZEND_ZOBJ_TO_OBJ(_zObj, _objType) \
     (_objType *) ((char *) _zObj - XtOffsetOf(_objType, std))
