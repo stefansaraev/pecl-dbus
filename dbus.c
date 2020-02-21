@@ -1578,6 +1578,12 @@ static zval *php_dbus_to_zval(DBusMessageIter *args, zval **key TSRMLS_DC)
 
 						if (val && Z_TYPE_P(new_key) == IS_STRING) {
 							add_assoc_zval_ex(dictobj->elements, Z_STRVAL_P(new_key), Z_STRLEN_P(new_key), val);
+						} else if (val && Z_TYPE_P(new_key) == IS_OBJECT) {
+							zend_object *obj = Z_OBJ_P(new_key);
+							if (obj->ce == dbus_ce_dbus_object_path) {
+								php_dbus_object_path_obj *intern = DBUS_ZEND_ZOBJ_TO_OBJ(obj, php_dbus_object_path_obj);
+								add_assoc_zval_ex(dictobj->elements, intern->path, strlen(intern->path), val);
+							}
 						} else if (val && Z_TYPE_P(new_key) == IS_LONG) {
 							add_index_zval(dictobj->elements, Z_LVAL_P(new_key), val);
 						}
